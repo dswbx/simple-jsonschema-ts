@@ -1,20 +1,15 @@
-import { $kind, type StaticConstEnum, type TSchema } from "../base";
+import { type StaticConstEnum, type TSchema, create } from "../base";
 import type { BooleanSchema } from "../types";
 
 export interface TBoolean<S extends BooleanSchema>
-   extends TSchema,
+   extends TSchema<"boolean">,
       BooleanSchema {
-   [$kind]: "boolean";
    static: StaticConstEnum<S, boolean>;
-   type: "boolean";
 }
 
-export const boolean = <const S extends BooleanSchema>(
-   schema?: S
-): TBoolean<S> => {
-   return {
-      type: "boolean",
-      [$kind]: "boolean",
+export const boolean = <const S extends BooleanSchema>(schema?: S) =>
+   create<TBoolean<S>>("boolean", {
+      coerce: (value) => Boolean(value),
       ...schema,
-   } as any;
-};
+      type: "boolean",
+   });

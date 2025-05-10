@@ -16,9 +16,11 @@
    "license": "MIT",
    "scripts": {
       "test:unit": "bun test",
-      "test:types": "tsc --noEmit",
-      "test": "bun test:types && bun test:unit",
+      "types": "tsc --noEmit",
+      "test": "bun types && bun test:unit",
+      "test:spec": "clear && bun run src/test/spec/run.ts",
       "build": "tsup",
+      "fetch": "npx giget gh:json-schema-org/JSON-Schema-Test-Suite/tests src/test/spec/lib",
       "prepublishOnly": "bun test && bun run build"
    },
    "devDependencies": {
@@ -27,6 +29,9 @@
       "ajv": "^8.17.1",
       "bun-types": "^1.2.9",
       "expect-type": "^1.2.1",
+      "hono": "^4.7.9",
+      "json-schema-library": "^10.0.0",
+      "picocolors": "^1.1.1",
       "tsup": "^8.4.0"
    },
    "peerDependencies": {
@@ -39,6 +44,7 @@
       "format": "esm",
       "platform": "neutral",
       "dts": true,
+      "metafile": true,
       "minify": true,
       "clean": true,
       "outDir": "dist"

@@ -1,9 +1,10 @@
 import { expectTypeOf } from "expect-type";
-import { $kind, type Static, type TSchema } from "../base";
+import { type Static, type TSchema } from "../base";
 import { ref } from "./ref";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
 import { string, number } from "../";
+import { $kind } from "../symbols";
 
 describe("ref", () => {
    test("basic", () => {
@@ -12,10 +13,8 @@ describe("ref", () => {
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<string>();
 
-      expect<any>(schema).toEqual({
-         [$kind]: "ref",
-         $ref: "#/$defs/string",
-      });
+      expect<any>(schema[$kind]).toEqual("ref");
+      expect<any>(schema.$ref).toEqual("#/$defs/string");
       assertJson(schema, {
          $ref: "#/$defs/string",
       });

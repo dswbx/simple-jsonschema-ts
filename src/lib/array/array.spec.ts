@@ -1,5 +1,5 @@
 import { expectTypeOf } from "expect-type";
-import { $kind, $optional, optional, type Static, type TSchema } from "../base";
+import { type Static, type TSchema } from "../base";
 import { array } from "./array";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
@@ -23,11 +23,6 @@ describe("array", () => {
          expectTypeOf<Inferred>().toEqualTypeOf<("hello" | "world")[]>();
       }
 
-      expect<any>(array(string())).toEqual({
-         type: "array",
-         items: { type: "string", [$kind]: "string" },
-         [$kind]: "array",
-      });
       assertJson(array(string()), {
          type: "array",
          items: { type: "string" },
@@ -51,11 +46,6 @@ describe("array", () => {
          expectTypeOf<Inferred>().toEqualTypeOf<(1 | 2 | 3)[]>();
       }
 
-      expect<any>(array(number())).toEqual({
-         type: "array",
-         items: { type: "number", [$kind]: "number" },
-         [$kind]: "array",
-      });
       assertJson(array(number()), {
          type: "array",
          items: { type: "number" },
@@ -63,29 +53,13 @@ describe("array", () => {
    });
 
    test("with objects", () => {
-      const schema = array(object({ name: optional(string()), age: number() }));
+      const schema = array(
+         object({ name: string().optional(), age: number() })
+      );
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<
          { name?: string; age: number }[]
       >();
-
-      expect<any>(schema).toEqual({
-         type: "array",
-         [$kind]: "array",
-         items: {
-            type: "object",
-            [$kind]: "object",
-            properties: {
-               name: {
-                  type: "string",
-                  [$kind]: "string",
-                  [$optional]: true,
-               },
-               age: { type: "number", [$kind]: "number" },
-            },
-            required: ["age"],
-         },
-      });
 
       assertJson(schema, {
          type: "array",
@@ -95,5 +69,71 @@ describe("array", () => {
             required: ["age"],
          },
       });
+   });
+
+   test("contains", () => {
+      const schema = array(string(), { contains: string() });
+      type Inferred = Static<typeof schema>;
+      expectTypeOf<Inferred>().toEqualTypeOf<string[]>();
+
+      expectTypeOf<typeof schema.contains>().toEqualTypeOf<
+         TSchema | undefined
+      >();
+
+      assertJson(schema, {
+         type: "array",
+         items: { type: "string" },
+         contains: { type: "string" },
+      });
+   });
+
+   describe("validate", () => {
+      test("base", () => {
+         const schema = array(string());
+         expect(schema.validate({}).errors[0]?.error).toEqual("Expected array");
+      });
+
+      test("minItems", () => {
+         const schema = array(string(), { minItems: 2 });
+         expect(schema.validate(["a"]).errors[0]?.error).toEqual(
+            "Expected array with at least 2 items"
+         );
+         expect(schema.validate(["a", "b"]).valid).toBe(true);
+      });
+
+      test("maxItems", () => {
+         const schema = array(string(), { maxItems: 2 });
+         expect(schema.validate(["a", "b", "c"]).errors[0]?.error).toEqual(
+            "Expected array with at most 2 items"
+         );
+         expect(schema.validate(["a", "b"]).valid).toBe(true);
+      });
+
+      test("contains", () => {
+         const schema = array(string(), { contains: string() });
+         expect(schema.validate(["a", "b"]).valid).toBe(true);
+         expect(schema.validate(["a", "b", 1]).valid).toBe(false);
+      });
+   });
+
+   test("template", () => {
+      const schema = array(string());
+      expect(schema.template()).toEqual([]);
+   });
+
+   test("coerce", () => {
+      {
+         const schema = array(string());
+         expect(schema.coerce("[]")).toEqual([]);
+         expect(schema.coerce("[1]")).toEqual(["1"]);
+         expect(schema.coerce(["a", "1"])).toEqual(["a", "1"]);
+      }
+
+      {
+         const schema = array(number());
+         expect(schema.coerce("[]")).toEqual([]);
+         expect(schema.coerce("[1]")).toEqual([1]);
+         expect(schema.coerce(["1", "2"])).toEqual([1, 2]);
+      }
    });
 });

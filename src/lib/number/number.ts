@@ -1,28 +1,48 @@
-import { $kind, type StaticConstEnum, type TSchema } from "../base";
+import {
+   type StaticConstEnum,
+   type TSchema,
+   type TSchemaWithFn,
+   create,
+} from "../base";
 import type { NumberSchema } from "../types";
 
-export interface TNumber<S extends NumberSchema> extends TSchema, NumberSchema {
-   [$kind]: "number";
+export interface TNumber<S extends NumberSchema>
+   extends TSchema<"number">,
+      NumberSchema {
    static: StaticConstEnum<S, number>;
-   type: "number";
 }
 
-export const number = <const S extends NumberSchema>(
+export const number = <const S extends TSchemaWithFn<NumberSchema>>(
    schema?: S
-): TNumber<S> => {
-   return {
+) =>
+   create<TNumber<S>>("number", {
+      coerce: (value) => Number(value),
+      template,
+      ...schema,
       type: "number",
-      [$kind]: "number",
-      ...schema,
-   } as any;
-};
+   });
 
-export const integer = <const S extends NumberSchema>(
+export const integer = <const S extends TSchemaWithFn<NumberSchema>>(
    schema?: S
-): TNumber<S> => {
-   return {
-      type: "integer",
-      [$kind]: "integer",
+) =>
+   create<TNumber<S>>("integer", {
+      coerce: (value) => Number(value),
+      template,
       ...schema,
-   } as any;
-};
+      type: "integer",
+   });
+
+function template(this: NumberSchema) {
+   if (this.minimum) return this.minimum;
+   if (this.exclusiveMinimum) {
+      if (this.multipleOf) {
+         let result = this.exclusiveMinimum;
+         while (result % this.multipleOf !== 0) {
+            result++;
+         }
+         return result;
+      }
+      return this.exclusiveMinimum + 1;
+   }
+   return 0;
+}

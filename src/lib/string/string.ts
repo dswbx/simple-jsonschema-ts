@@ -1,33 +1,36 @@
-import { $kind, type StaticConstEnum, type TSchema } from "../base";
+import {
+   type StaticConstEnum,
+   type TSchema,
+   type TSchemaWithFn,
+   create,
+} from "../base";
 import type { StringSchema } from "../types";
 
 export interface TString<S extends StringSchema = StringSchema>
-   extends TSchema,
+   extends TSchema<"string">,
       StringSchema {
-   [$kind]: "string";
    static: StaticConstEnum<S, string>;
-   type: "string";
 }
 
-export const string = <const S extends StringSchema = StringSchema>(
+export const string = <const S extends TSchemaWithFn<StringSchema>>(
    schema?: S
-): TString<S> => {
-   return {
-      type: "string",
-      [$kind]: "string",
+) =>
+   create<TString<S>>("string", {
+      template: () => "",
+      coerce: (value) => String(value),
       ...schema,
-   } as any;
-};
+      type: "string",
+   });
 
-export const stringConst = <const S extends StringSchema = StringSchema>(
+export const stringConst = <const S extends TSchemaWithFn<StringSchema>>(
    schema: S
-): TString<S> => {
-   return {
-      type: "string",
-      [$kind]: "string",
+) =>
+   create<TString<S>>("string", {
+      template: () => "",
+      coerce: (value) => String(value),
       ...schema,
+      type: "string",
       const: schema.const,
       default: schema.const,
       readOnly: true,
-   } as any;
-};
+   });

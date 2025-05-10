@@ -17,7 +17,7 @@ const schemas = [
    {
       name: "object with optional",
       schema: s.object({
-         name: s.optional(s.string()),
+         name: s.string().optional(),
          age: s.number({ minimum: 18 }),
       }),
       data: [
@@ -29,6 +29,10 @@ const schemas = [
    },
 ] as const;
 
+function cleanSchema(schema: s.TSchema) {
+   return JSON.parse(JSON.stringify(schema));
+}
+
 const validators: {
    name: string;
    validate: (schema: s.TSchema, data: any) => boolean;
@@ -36,7 +40,7 @@ const validators: {
    {
       name: "@cfworker/json-schema",
       validate: (schema: s.TSchema, data: any) => {
-         return new Validator(schema).validate(data).valid;
+         return new Validator(cleanSchema(schema)).validate(data).valid;
       },
    },
    {
@@ -54,7 +58,7 @@ describe("validation", () => {
          for (const { name, schema, data } of schemas) {
             test(name, () => {
                for (const [_data, valid] of data) {
-                  const result = validate(schema, _data);
+                  const result = validate(cleanSchema(schema), _data);
                   expect(result).toBe(valid);
                }
             });

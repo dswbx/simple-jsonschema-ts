@@ -235,6 +235,13 @@ const StringOrNumberSchema = s.anyOf([s.string(), s.number()]);
 type StringOrNumber = s.Static<typeof StringOrNumberSchema>; // string | number
 ```
 
+## Validation Status
+
+Total tests: 1906
+Passed: 1094 (57.40%)
+Skipped: 598 (31.37%)
+Failed: 214 (11.23%)
+
 ## Validation
 
 The schemas created with `jsonschema-ts` are standard JSON Schema objects and can be used with any compliant validator. The library ensures that when the schema object is converted to JSON (e.g., using `JSON.stringify`), only standard JSON Schema properties are included, stripping any internal metadata. For the examples, this is going to be the base schema object.

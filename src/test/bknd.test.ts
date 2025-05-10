@@ -71,6 +71,16 @@ describe("Field", () => {
                  | "submit"
               )[];
       }>();
+
+      expect(baseFieldConfig.template()).toEqual({});
+      expect(baseFieldConfig.template({ withOptional: true })).toEqual({
+         label: "",
+         description: "",
+         required: false,
+         virtual: false,
+         fillable: true,
+         hidden: false,
+      });
    });
 
    test("NumberField config", () => {
