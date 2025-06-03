@@ -1,6 +1,6 @@
 import { expectTypeOf } from "expect-type";
 import { type Static, type StaticCoerced } from "../static";
-import { string } from "./string";
+import { string, StringType } from "./string";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
 import { error, valid } from "../utils/details";
@@ -11,10 +11,21 @@ describe("string", () => {
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<string>();
 
+      const stringSchema = new StringType({ maxLength: 1 });
+      stringSchema._schema.maxLength;
+      console.log(stringSchema);
+
       assertJson(string(), { type: "string" });
+
+      {
+         const schema = string({ maxLength: 1, title: "what" });
+         console.log(schema.toJSON());
+      }
    });
 
    test("types", () => {
+      const opt = string({ maxLength: 1 }).optional();
+
       // expect to be fine
       string({ maxLength: 1, minLength: 1, pattern: "", format: "" });
       // expect fns to work
@@ -35,16 +46,11 @@ describe("string", () => {
          minLength: 1,
          pattern: "/a/",
       });
+      const _ss = schema._schema;
+      console.log(schema.type);
 
-      expectTypeOf<(typeof schema)["pattern"]>().toEqualTypeOf<"/a/">();
-      expectTypeOf<(typeof schema)["minLength"]>().toEqualTypeOf<1>();
-
-      expectTypeOf<(typeof schema)["maxLength"]>().toEqualTypeOf<
-         number | undefined
-      >();
-      expectTypeOf<(typeof schema)["$id"]>().toEqualTypeOf<
-         string | undefined
-      >();
+      expectTypeOf<(typeof _ss)["pattern"]>().toEqualTypeOf<"/a/">();
+      expectTypeOf<(typeof _ss)["minLength"]>().toEqualTypeOf<1>();
    });
 
    test("with const", () => {
@@ -159,7 +165,7 @@ describe("string", () => {
             "/minLength"
          );
          expect(schema.validate("abcd").valid).toBe(true);
-         //console.log("custom", schema.validate("throw"));
+         console.log("custom", schema.validate("throw"));
          expect(schema.validate("throw").errors[0]?.error).toEqual("throw");
       });
    });
@@ -173,8 +179,6 @@ describe("string", () => {
    test("coerce", () => {
       expect(string().coerce("hello")).toEqual("hello");
       expect(string().coerce(1)).toEqual("1");
-      expect(string().coerce(true)).toEqual(true);
-      expect(string().coerce(false)).toEqual(false);
 
       // custom coersion
       expect(

@@ -1,5 +1,6 @@
-import { schema, type TCustomSchema, type TCustomType } from "../schema";
+import { SchemaType, type TCustomSchema, type TCustomType } from "../schema";
 import { isString } from "../utils";
+import type { CoercionOptions } from "../validation/coerce";
 
 export interface NumberSchema extends TCustomType {
    multipleOf?: number;
@@ -9,51 +10,31 @@ export interface NumberSchema extends TCustomType {
    exclusiveMinimum?: number;
 }
 
-export type TNumber<O extends NumberSchema> = TCustomSchema<O, number>;
+export class NumberType<const O extends NumberSchema> extends SchemaType<
+   O,
+   number
+> {
+   protected _template = 0;
+   type = "number";
 
-export const number = <const S extends NumberSchema>(
-   options: S = {} as S
-): TNumber<S> =>
-   schema(
-      {
-         coerce: (value: unknown) => {
-            if (isString(value)) return Number(value);
-            return value;
-         },
-         template,
-         ...options,
-         type: "number",
-      },
-      "number"
-   ) as any;
-
-export const integer = <const S extends NumberSchema>(
-   options: S = {} as S
-): TNumber<S> =>
-   schema(
-      {
-         coerce: (value: unknown) => {
-            if (isString(value)) return Number.parseInt(value);
-            return value;
-         },
-         template,
-         ...options,
-         type: "integer",
-      },
-      "integer"
-   ) as any;
-
-function template(this: NumberSchema) {
-   if (this.minimum) return this.minimum;
-   if (this.exclusiveMinimum) {
-      if (this.multipleOf) {
-         let result = this.exclusiveMinimum;
-         while (result % this.multipleOf !== 0) {
-            result++;
-         }
-         return result;
-      }
-      return this.exclusiveMinimum + 1;
+   override coerce(value: unknown, opts?: CoercionOptions) {
+      if (isString(value)) return Number(value);
+      return super.coerce(value, opts);
    }
-   return 0;
 }
+
+export const number = <const O extends NumberSchema>(config?: O) =>
+   new NumberType<O>(config);
+
+export class IntegerType<const O extends NumberSchema> extends NumberType<O> {
+   protected _template = 0;
+   type = "integer";
+
+   override coerce(value: unknown, opts?: CoercionOptions) {
+      if (isString(value)) return Number.parseInt(value);
+      return super.coerce(value, opts);
+   }
+}
+
+export const integer = <const O extends NumberSchema>(config?: O) =>
+   new IntegerType<O>(config);

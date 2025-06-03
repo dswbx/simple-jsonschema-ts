@@ -1,6 +1,6 @@
-import { schema, type TCustomSchema, type TCustomType } from "../schema";
-import type { Merge, Simplify } from "../static";
+import { SchemaType, type TCustomType } from "../schema";
 import { isNumber } from "../utils";
+import type { CoercionOptions } from "../validation/coerce";
 
 export interface StringSchema extends TCustomType {
    maxLength?: number;
@@ -9,21 +9,18 @@ export interface StringSchema extends TCustomType {
    format?: string;
 }
 
-export type TString<O extends StringSchema> = TCustomSchema<O, string>;
+export class StringType<const O extends StringSchema> extends SchemaType<
+   O,
+   string
+> {
+   protected _template = "";
+   type = "string";
 
-export const string = <const S extends StringSchema = StringSchema>(
-   config: S = {} as S
-): TString<S> =>
-   schema(
-      {
-         template: () => "",
-         coerce: (value: unknown) => {
-            // only coerce numbers to strings
-            if (isNumber(value)) return String(value);
-            return value;
-         },
-         ...config,
-         type: "string",
-      },
-      "string"
-   ) as any;
+   override coerce(value: unknown, opts?: CoercionOptions) {
+      if (isNumber(value)) return String(value);
+      return super.coerce(value, opts);
+   }
+}
+
+export const string = <const O extends StringSchema>(config?: O) =>
+   new StringType<O>(config);

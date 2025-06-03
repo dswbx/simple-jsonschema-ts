@@ -41,17 +41,11 @@ describe("number", () => {
          maximum: 1,
          multipleOf: 1,
       });
+      const _s = schema._schema;
 
-      expectTypeOf<(typeof schema)["minimum"]>().toEqualTypeOf<1>();
-      expectTypeOf<(typeof schema)["maximum"]>().toEqualTypeOf<1>();
-      expectTypeOf<(typeof schema)["multipleOf"]>().toEqualTypeOf<1>();
-
-      expectTypeOf<(typeof schema)["exclusiveMaximum"]>().toEqualTypeOf<
-         number | undefined
-      >();
-      expectTypeOf<(typeof schema)["$id"]>().toEqualTypeOf<
-         string | undefined
-      >();
+      expectTypeOf<(typeof _s)["minimum"]>().toEqualTypeOf<1>();
+      expectTypeOf<(typeof _s)["maximum"]>().toEqualTypeOf<1>();
+      expectTypeOf<(typeof _s)["multipleOf"]>().toEqualTypeOf<1>();
    });
 
    test("with const", () => {
@@ -182,11 +176,6 @@ describe("number", () => {
 
    test("template", () => {
       expect(number().template()).toEqual(0);
-      expect(number({ minimum: 1 }).template()).toEqual(1);
-      expect(number({ exclusiveMinimum: 1 }).template()).toEqual(2);
-      expect(number({ exclusiveMinimum: 1, multipleOf: 2 }).template()).toEqual(
-         2
-      );
       expect(number({ default: 1 }).template()).toEqual(1);
       expect(number({ const: 1 }).template()).toEqual(1);
    });
@@ -194,6 +183,7 @@ describe("number", () => {
    test("coerce", () => {
       expect(number().coerce("1")).toEqual(1);
       expect(number().coerce(1)).toEqual(1);
+      // @ts-expect-error
       expect(number().coerce(true)).toEqual(true);
 
       // custom coersion

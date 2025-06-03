@@ -1,4 +1,4 @@
-import type { TAnySchema, TSchema } from "./schema";
+import type { SchemaType, TAnySchema } from "./schema";
 
 // from https://github.com/type-challenges/type-challenges/issues/28200
 export type Merge<T> = {
@@ -22,19 +22,17 @@ export type OptionalUndefined<
 // https://github.com/sindresorhus/type-fest/blob/main/source/simplify.d.ts
 export type Simplify<T> = { [KeyType in keyof T]: T[KeyType] } & {};
 
-export type Static<S extends TAnySchema> = S["static"] extends {
+export type Static<S extends SchemaType> = S["static"] extends {
    [key: string]: any;
 }
    ? Simplify<S["static"]>
    : S["static"];
 
-export type StaticCoerced<S extends TAnySchema> = S["coerce"] extends (
-   v: unknown
-) => infer R
-   ? R extends { [key: string]: unknown }
-      ? Simplify<OptionalUndefined<R>>
-      : R
-   : never;
+export type StaticCoerced<S extends SchemaType> = S["coerced"] extends {
+   [key: string]: any;
+}
+   ? Simplify<S["coerced"]>
+   : S["coerced"];
 
 export type StaticConstEnum<
    Schema extends { const?: unknown; enum?: unknown },
