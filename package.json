@@ -3,7 +3,7 @@
    "main": "dist/lib/index.js",
    "module": "dist/lib/index.js",
    "types": "dist/lib/index.d.ts",
-   "version": "0.1.0",
+   "version": "0.2.0-alpha.0",
    "sideEffects": false,
    "description": "A simple, lightweight and dependency-free TypeScript library for defining and validating JSON schemas with static type inference. Includes Hono middleware for validation, OpenAPI generation, and MCP server implementation.",
    "repository": {
