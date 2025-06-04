@@ -1,4 +1,4 @@
-import type { TSchema } from "../schema";
+import { SchemaType, type TSchema } from "../schema";
 import { InvariantError } from "../errors";
 import { $kind, $raw } from "../symbols";
 import type {
@@ -56,7 +56,7 @@ export function isTypeSchema(schema: unknown): schema is BaseJSONSchema {
 }
 
 export function isSchema(schema: unknown): schema is TSchema {
-   return isObject(schema) && $kind in schema;
+   return schema instanceof SchemaType;
 }
 
 export function isBooleanSchema(schema: unknown): schema is TSchema & {

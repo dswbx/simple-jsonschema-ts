@@ -144,6 +144,7 @@ describe("array", () => {
          const schema = array(string(), { contains: string() });
          expect(schema.validate(["a", "b"]).valid).toBe(true);
          expect(schema.validate(["a", "b", 1]).valid).toBe(false);
+         expect(schema.validate([2, 1]).valid).toBe(false);
       });
    });
 

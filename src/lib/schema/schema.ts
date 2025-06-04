@@ -63,6 +63,7 @@ export interface TJsonSchemaBaseOptions {
    examples?: any[];
    enum?: readonly any[] | any[];
    const?: any;
+   [key: string]: any;
 }
 
 export interface TCustomType
@@ -250,12 +251,13 @@ export const schema = <
 
 export abstract class SchemaType<
    Options extends TCustomType | boolean = TCustomType,
-   Type = unknown
+   Type = unknown,
+   Coerced = Type
 > {
    static: StaticConstEnum<Exclude<Options, boolean>, Type>;
    coerced: Options extends { coerce: (...args: any[]) => unknown }
       ? ReturnType<Options["coerce"]>
-      : StaticConstEnum<Exclude<Options, boolean>, Type>;
+      : StaticConstEnum<Exclude<Options, boolean>, Coerced>;
 
    protected _template: Type | undefined;
    type: string;
@@ -267,7 +269,7 @@ export abstract class SchemaType<
    }
 
    template(opts?: TSchemaTemplateOptions): Type | undefined {
-      const s = this.#getSchema();
+      const s = this.getSchema();
       if (s.const !== undefined) return s.const;
       if (s.default !== undefined) return s.default;
       if (s.enum !== undefined) return s.enum[0] as any;
@@ -275,15 +277,18 @@ export abstract class SchemaType<
       return this._template;
    }
 
+   protected _coerce(value: unknown, opts?: CoercionOptions): Type {
+      return value as any;
+   }
    coerce(value: unknown, opts?: CoercionOptions): Type {
-      const s = this.#getSchema();
+      const s = this.getSchema();
       if ("coerce" in s && s.coerce !== undefined) {
          return s.coerce(value, opts) as any;
       }
-      return value as any;
+      return this._coerce(value, opts);
    }
 
-   #getSchema(): TCustomType & { type: string } {
+   protected getSchema(): TCustomType & { type: string } {
       const { type, ...rest } = isObject(this._schema)
          ? (this._schema as object)
          : ({} as any);
@@ -300,7 +305,7 @@ export abstract class SchemaType<
             : valid();
       }
 
-      const s = this.#getSchema();
+      const s = this.getSchema();
 
       if ("validate" in s && s.validate !== undefined) {
          const result = s.validate(value, opts);
@@ -318,6 +323,6 @@ export abstract class SchemaType<
    }
 
    toJSON() {
-      return JSON.parse(JSON.stringify(this.#getSchema()));
+      return JSON.parse(JSON.stringify(this.getSchema()));
    }
 }

@@ -17,9 +17,9 @@ export class NumberType<const O extends NumberSchema> extends SchemaType<
    protected _template = 0;
    type = "number";
 
-   override coerce(value: unknown, opts?: CoercionOptions) {
+   override _coerce(value: unknown, opts?: CoercionOptions) {
       if (isString(value)) return Number(value);
-      return super.coerce(value, opts);
+      return value as number;
    }
 }
 
@@ -30,7 +30,7 @@ export class IntegerType<const O extends NumberSchema> extends NumberType<O> {
    protected _template = 0;
    type = "integer";
 
-   override coerce(value: unknown, opts?: CoercionOptions) {
+   override _coerce(value: unknown, opts?: CoercionOptions) {
       if (isString(value)) return Number.parseInt(value);
       return super.coerce(value, opts);
    }
