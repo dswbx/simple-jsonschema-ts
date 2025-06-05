@@ -1,8 +1,6 @@
 import * as lib from "..";
-import * as unionFns from "../union/union";
-import { isObject, isTypeSchema, isArray, isBoolean, isSchema } from "../utils";
 import { InvalidRawSchemaError } from "../errors";
-import { mergeAllOf } from "../utils/merge-allof";
+import { isArray, isBoolean, isObject, isTypeSchema } from "../utils";
 
 function eachArray<T>(array: any | any[], fn: (item: any) => T): T[] {
    return Array.isArray(array)

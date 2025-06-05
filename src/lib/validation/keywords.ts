@@ -1,4 +1,4 @@
-import type { TSchema } from "../schema";
+import type { SchemaType, TSchema } from "../schema";
 import { InvalidTypeError } from "../errors";
 import {
    isArray,
@@ -79,18 +79,18 @@ export const _enum = (
    return valid();
 };
 
-export function matches<T extends TSchema[]>(
+export function matches<T extends SchemaType[]>(
    schemas: T,
    value: unknown,
    opts: Opts = {}
-): TSchema[] {
+): SchemaType[] {
    return schemas
       .map((s) => (s.validate(value, tmpOpts(opts)).valid ? s : undefined))
-      .filter(Boolean) as TSchema[];
+      .filter(Boolean) as SchemaType[];
 }
 
 export const anyOf = (
-   { anyOf = [] }: TSchema,
+   { anyOf = [] }: { anyOf: SchemaType[] },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -99,7 +99,7 @@ export const anyOf = (
 };
 
 export const oneOf = (
-   { oneOf = [] }: TSchema,
+   { oneOf = [] }: { oneOf: SchemaType[] },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -108,7 +108,7 @@ export const oneOf = (
 };
 
 export const allOf = (
-   { allOf = [] }: TSchema,
+   { allOf = [] }: { allOf: SchemaType[] },
    value: unknown,
    opts: Opts = {}
 ) => {

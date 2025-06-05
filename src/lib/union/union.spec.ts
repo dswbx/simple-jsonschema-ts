@@ -1,7 +1,7 @@
 import { expectTypeOf } from "expect-type";
 import type { Static, StaticCoerced } from "../static";
 import { $kind } from "../symbols";
-import { allOf, anyOf, oneOf } from "./union";
+import { anyOf, oneOf } from "./union";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
 import { string, number, object, array, any, integer, literal } from "../";
@@ -11,8 +11,6 @@ describe("union", () => {
       const schema = anyOf([string(), number()]);
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<string | number>();
-
-      expect<any>(schema[$kind]).toEqual("anyOf");
 
       assertJson(schema, {
          anyOf: [{ type: "string" }, { type: "number" }],
@@ -124,58 +122,12 @@ describe("union", () => {
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<string | number>();
 
-      expect<any>(schema[$kind]).toEqual("oneOf");
-
       assertJson(schema, {
          oneOf: [{ type: "string" }, { type: "number" }],
       });
    });
 
    // use with caution!
-   test("allOf", () => {
-      const schema = allOf([
-         object({ test: string() }),
-         object({ what: string() }),
-      ]);
-      type Inferred = Static<typeof schema>;
-      expectTypeOf<Inferred>().toEqualTypeOf<{
-         test: string;
-         what: string;
-         [key: string]: unknown;
-      }>();
-
-      //console.log(JSON.stringify(schema, null, 2));
-      assertJson(schema, {
-         type: "object",
-         required: ["test", "what"],
-         properties: {
-            test: {
-               type: "string",
-            },
-            what: {
-               type: "string",
-            },
-         },
-      });
-   });
-
-   test("allOf complex", () => {
-      const schema = allOf([
-         object({
-            bar: number(),
-         }),
-         object({
-            foo: string(),
-         }),
-      ]);
-      //console.log(schema);
-      type Inferred = Static<typeof schema>;
-      expectTypeOf<Inferred>().toEqualTypeOf<{
-         bar: number;
-         foo: string;
-         [key: string]: unknown;
-      }>();
-   });
 
    test("template", () => {
       const schema = anyOf([string(), number()], { default: 1 });

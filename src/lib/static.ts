@@ -34,10 +34,9 @@ export type StaticCoerced<S extends SchemaType> = S["coerced"] extends {
    ? Simplify<S["coerced"]>
    : S["coerced"];
 
-export type StaticConstEnum<
-   Schema extends { const?: unknown; enum?: unknown },
-   Fallback = unknown
-> = Schema extends { const: infer C }
+export type StaticConstEnum<Schema, Fallback = unknown> = Schema extends {
+   const: infer C;
+}
    ? C
    : Schema extends { enum: infer E }
    ? E extends readonly any[]

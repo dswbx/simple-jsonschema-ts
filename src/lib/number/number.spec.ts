@@ -11,6 +11,15 @@ describe("number", () => {
       expectTypeOf<Inferred>().toEqualTypeOf<number>();
 
       assertJson(number(), { type: "number" });
+
+      {
+         // optional
+         const schema = number().optional();
+         type Inferred = Static<typeof schema>;
+         expectTypeOf<Inferred>().toEqualTypeOf<number | undefined>();
+
+         assertJson(schema, { type: "number" });
+      }
    });
 
    test("types", () => {

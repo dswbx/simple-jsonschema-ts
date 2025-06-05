@@ -28,7 +28,7 @@ export interface TSchemaFn {
    validate: (value: unknown, opts?: ValidationOptions) => ValidationResult;
    template: (opts?: TSchemaTemplateOptions) => unknown;
    coerce: (value: unknown, opts?: CoercionOptions) => unknown;
-   // @todo: remove this
+   // needed for boolean schemas
    toJSON: () => object;
 }
 
@@ -63,6 +63,7 @@ export interface TJsonSchemaBaseOptions {
    examples?: any[];
    enum?: readonly any[] | any[];
    const?: any;
+
    [key: string]: any;
 }
 
@@ -249,18 +250,19 @@ export const schema = <
    return s2 as any;
 };
 
-export abstract class SchemaType<
-   Options extends TCustomType | boolean = TCustomType,
+export class SchemaType<
+   Options extends TCustomType = TCustomType,
    Type = unknown,
    Coerced = Type
 > {
-   static: StaticConstEnum<Exclude<Options, boolean>, Type>;
+   static: StaticConstEnum<Options, Type>;
    coerced: Options extends { coerce: (...args: any[]) => unknown }
       ? ReturnType<Options["coerce"]>
-      : StaticConstEnum<Exclude<Options, boolean>, Coerced>;
+      : StaticConstEnum<Options, Coerced>;
+   _optional: boolean = false;
 
    protected _template: Type | undefined;
-   type: string;
+   readonly type: string | undefined;
 
    constructor(public readonly _schema: Options = {} as Options) {
       this.static = undefined as any;
@@ -268,7 +270,7 @@ export abstract class SchemaType<
       this.type = undefined as any;
    }
 
-   template(opts?: TSchemaTemplateOptions): Type | undefined {
+   template(opts?: TSchemaTemplateOptions): any {
       const s = this.getSchema();
       if (s.const !== undefined) return s.const;
       if (s.default !== undefined) return s.default;
@@ -277,10 +279,10 @@ export abstract class SchemaType<
       return this._template;
    }
 
-   protected _coerce(value: unknown, opts?: CoercionOptions): Type {
+   protected _coerce(value: unknown, opts?: CoercionOptions): Coerced {
       return value as any;
    }
-   coerce(value: unknown, opts?: CoercionOptions): Type {
+   coerce(value: unknown, opts?: CoercionOptions): Coerced {
       const s = this.getSchema();
       if ("coerce" in s && s.coerce !== undefined) {
          return s.coerce(value, opts) as any;
@@ -298,13 +300,31 @@ export abstract class SchemaType<
       };
    }
 
-   validate(value: unknown, opts?: ValidationOptions) {
-      if (isBoolean(this._schema)) {
-         return this._schema === false
-            ? error(opts, "", "Always fails")
-            : valid();
-      }
+   static true<TrueSchema extends TCustomType>(
+      s: TrueSchema = {} as TrueSchema
+   ) {
+      return new SchemaType<TrueSchema, unknown, unknown>({
+         ...s,
+         toJSON: () => true,
+         validate: () => {
+            return valid();
+         },
+      });
+   }
 
+   static false<FalseSchema extends TCustomType>(
+      s: FalseSchema = {} as FalseSchema
+   ) {
+      return new SchemaType<FalseSchema, never, never>({
+         ...s,
+         toJSON: () => false,
+         validate: (v, opts) => {
+            return error(opts, "", "Always fails");
+         },
+      });
+   }
+
+   validate(value: unknown, opts?: ValidationOptions) {
       const s = this.getSchema();
 
       if ("validate" in s && s.validate !== undefined) {
@@ -317,12 +337,17 @@ export abstract class SchemaType<
       return validate(s as any, value, opts);
    }
 
-   optional<T extends SchemaType<any, any>>(this: T): TOptional<T> {
-      // @todo: check this
+   optional<T extends SchemaType<any, any, any>>(
+      this: T
+   ): T extends SchemaType<infer O, infer T, infer C>
+      ? SchemaType<O, T | undefined, C | undefined>
+      : never {
+      this._optional = true;
       return this as any;
    }
 
    toJSON() {
+      if (this._schema.toJSON) return this._schema.toJSON();
       return JSON.parse(JSON.stringify(this.getSchema()));
    }
 }

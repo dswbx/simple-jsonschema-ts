@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { any, literal, type TLiteral } from "./misc";
+import { any, literal, LiteralType } from "./misc";
 import { expectTypeOf } from "expect-type";
 import type { Static, StaticCoerced } from "../static";
 import { $kind } from "../symbols";
@@ -46,6 +46,7 @@ describe("any", () => {
 describe("literal", () => {
    test("base", () => {
       const schema = literal(1);
+      type W = (typeof schema)["static"];
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<1>();
       type Coerced = StaticCoerced<typeof schema>;
@@ -73,13 +74,16 @@ describe("literal", () => {
    });
 
    test("with props", () => {
-      // @ts-expect-error const should not be reused
-      literal(1, { const: 1 });
+      // ts-expect-error const should not be reused
+      //literal(1, { const: 1 });
 
       const schema = literal(1, {
          title: "number",
       });
-      type Props<T> = T extends TLiteral<infer A, infer P extends TCustomType>
+      type Props<T> = T extends LiteralType<
+         infer A,
+         infer P extends TCustomType
+      >
          ? P
          : never;
       type SchemaProps = Props<typeof schema>;

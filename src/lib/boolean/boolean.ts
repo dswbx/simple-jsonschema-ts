@@ -9,7 +9,7 @@ export class BooleanType<const O extends BooleanSchema> extends SchemaType<
    boolean
 > {
    protected _template = false;
-   type = "boolean";
+   readonly type = "boolean";
 
    override _coerce(value: unknown, opts?: CoercionOptions) {
       if ("coerce" in this._schema && this._schema.coerce) {
@@ -23,7 +23,16 @@ export class BooleanType<const O extends BooleanSchema> extends SchemaType<
          if (value === 0) return false;
       }
 
-      return value as any;
+      return value as boolean;
+   }
+
+   optional<T extends SchemaType>(
+      this: T
+   ): T extends SchemaType<infer O, infer T, infer C>
+      ? SchemaType<O, T | undefined, C | undefined>
+      : never {
+      this._optional = true;
+      return this as any;
    }
 }
 

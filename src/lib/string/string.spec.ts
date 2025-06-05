@@ -19,7 +19,16 @@ describe("string", () => {
 
       {
          const schema = string({ maxLength: 1, title: "what" });
-         console.log(schema.toJSON());
+         //console.log(schema.toJSON());
+      }
+
+      {
+         // optional
+         const schema = string().optional();
+         type Inferred = Static<typeof schema>;
+         expectTypeOf<Inferred>().toEqualTypeOf<string | undefined>();
+
+         assertJson(schema, { type: "string" });
       }
    });
 

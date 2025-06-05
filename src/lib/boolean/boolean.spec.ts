@@ -12,6 +12,22 @@ describe("number", () => {
 
       expect(boolean()).toBeInstanceOf(BooleanType);
       assertJson(boolean(), { type: "boolean" });
+
+      {
+         // type
+         type T = Static<BooleanType<{}>>;
+         expectTypeOf<T>().toEqualTypeOf<boolean>();
+      }
+
+      {
+         // optional
+         const schema = boolean().optional();
+         type Inferred = Static<typeof schema>;
+         //   ^?
+         expectTypeOf<Inferred>().toEqualTypeOf<boolean | undefined>();
+
+         assertJson(schema, { type: "boolean" });
+      }
    });
 
    test("with const", () => {

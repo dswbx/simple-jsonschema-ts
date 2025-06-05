@@ -25,16 +25,12 @@ export class ArrayType<
    type = "array";
 
    constructor(public readonly items?: Items, options: O = {} as O) {
-      super(options);
+      super({
+         ...options,
+         items,
+      });
       this.items = items;
-      this.coerced = undefined as any;
-   }
-
-   protected override getSchema() {
-      return {
-         ...super.getSchema(),
-         items: this.items,
-      };
+      this.coerced = [] as any;
    }
 
    override _coerce(_value: unknown, opts?: CoercionOptions) {
