@@ -101,7 +101,7 @@ describe("hono middleware", () => {
       type Coerced = s.StaticCoerced<typeof schema>;
       //   ^?
       expectTypeOf<Coerced>().toEqualTypeOf<{
-         url: "what";
+         url?: "what";
          force: true;
          [key: string]: unknown;
       }>();
@@ -109,7 +109,7 @@ describe("hono middleware", () => {
          const json = c.req.valid("query");
          //    ^?
          expectTypeOf<typeof json>().toEqualTypeOf<{
-            url: "what";
+            url?: "what";
             force: true;
             [key: string]: unknown;
          }>();

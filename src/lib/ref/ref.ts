@@ -52,11 +52,16 @@ export const refId = <T = unknown, const Ref extends string = string>(
 export const recursive = <const T extends SchemaType>(
    cb: (thisSchema: SchemaType) => T
 ) => {
-   return cb(new SchemaType({ $ref: "#" })) as T;
-
-   /* const { validate, ...thisType } = cb(
-      new SchemaType({ $ref: "#" }),
-      "recursive"
-   );
-   return thisType as unknown as T; */
+   return cb(
+      new SchemaType({
+         $ref: "#",
+         coerce: (value: unknown, opts?: CoercionOptions) => {
+            const ref = opts?.resolver?.resolve("#");
+            if (!isSchema(ref)) {
+               throw new Error(`Ref not found: #`);
+            }
+            return ref.coerce(value, opts) as any;
+         },
+      })
+   ) as T;
 };

@@ -51,7 +51,6 @@ export abstract class UnionType<
          resolver: opts.resolver,
          coerce: true,
       });
-      //console.log("m", { schemas: this.schemas, value, opts, m });
 
       if (m.length > 0) {
          return m[0]!.coerce(value, opts);

@@ -18,7 +18,12 @@ export class NumberType<const O extends NumberSchema> extends SchemaType<
    type = "number";
 
    override _coerce(value: unknown, opts?: CoercionOptions) {
-      if (isString(value)) return Number(value);
+      if (isString(value)) {
+         const n = Number(value);
+         if (!Number.isNaN(n)) {
+            return n;
+         }
+      }
       return value as number;
    }
 }

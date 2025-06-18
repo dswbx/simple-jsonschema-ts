@@ -1,4 +1,4 @@
-import type { StaticConstEnum } from "../static";
+import type { OptionallyOptional, StaticConstEnum } from "../static";
 import { isObject } from "../utils";
 import { error, valid } from "../utils/details";
 import { coerce, type CoercionOptions } from "../validation/coerce";
@@ -59,9 +59,11 @@ export class SchemaType<
    Coerced = Type
 > {
    static: StaticConstEnum<Options, Type>;
-   coerced: Options extends { coerce: (...args: any[]) => infer C }
-      ? C
-      : StaticConstEnum<Options, Coerced>;
+   coerced: Options extends {
+      coerce: (...args: any[]) => infer C;
+   }
+      ? OptionallyOptional<Coerced, C>
+      : OptionallyOptional<Coerced, StaticConstEnum<Options, Coerced>>;
    _optional: boolean = false;
 
    protected _template: Type | undefined;
@@ -82,24 +84,6 @@ export class SchemaType<
       return this._template;
    }
 
-   protected _coerce(value: unknown, opts?: CoercionOptions): Coerced {
-      return value as any;
-   }
-   coerce(value: unknown, opts?: CoercionOptions): Coerced {
-      const ctx: Required<CoercionOptions> = {
-         ...opts,
-         resolver: opts?.resolver || new Resolver(this),
-         depth: opts?.depth ? opts.depth + 1 : 0,
-      };
-
-      const s = this.getSchema();
-      if ("coerce" in s && s.coerce !== undefined) {
-         return s.coerce(value, ctx) as any;
-      }
-
-      return coerce(this, this._coerce(value, ctx), ctx) as any;
-   }
-
    protected getSchema(): TCustomType & { type: string } {
       const { type, ...rest } = isObject(this._schema)
          ? (this._schema as object)
@@ -107,6 +91,12 @@ export class SchemaType<
       return {
          type: this.type,
          ...rest,
+         coerce: (...args) => {
+            if (this._schema.coerce) {
+               return this._schema.coerce(...args);
+            }
+            return this._coerce(...args);
+         },
       };
    }
 
@@ -134,17 +124,45 @@ export class SchemaType<
       });
    }
 
+   protected _coerce(value: unknown, opts?: CoercionOptions): Coerced {
+      return value as any;
+   }
+   coerce(value: unknown, opts?: CoercionOptions): Coerced {
+      const ctx: Required<CoercionOptions> = {
+         ...opts,
+         resolver: opts?.resolver || new Resolver(this),
+         depth: opts?.depth ? opts.depth + 1 : 0,
+      };
+
+      const s = this.getSchema();
+      if ("coerce" in s && s.coerce !== undefined) {
+         return s.coerce(value, ctx) as any;
+      }
+
+      return coerce(this, this._coerce(value, ctx), ctx) as any;
+   }
+
    validate(value: unknown, opts?: ValidationOptions) {
       const s = this.getSchema();
+      const ctx: Required<ValidationOptions> = {
+         keywordPath: opts?.keywordPath || [],
+         instancePath: opts?.instancePath || [],
+         coerce: opts?.coerce || false,
+         errors: opts?.errors || [],
+         shortCircuit: opts?.shortCircuit || false,
+         ignoreUnsupported: opts?.ignoreUnsupported || false,
+         resolver: opts?.resolver || new Resolver(this),
+         depth: opts?.depth ? opts.depth + 1 : 0,
+      };
 
       if ("validate" in s && s.validate !== undefined) {
-         const result = s.validate(value, opts);
+         const result = s.validate(value, ctx);
          if (!result.valid) {
             return result;
          }
       }
 
-      return validate(s as any, value, opts);
+      return validate(s as any, value, ctx);
    }
 
    optional<T extends SchemaType<any, any, any>>(

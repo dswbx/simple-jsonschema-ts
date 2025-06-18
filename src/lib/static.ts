@@ -22,6 +22,8 @@ export type OptionalUndefined<
 // https://github.com/sindresorhus/type-fest/blob/main/source/simplify.d.ts
 export type Simplify<T> = { [KeyType in keyof T]: T[KeyType] } & {};
 
+export type OptionallyOptional<T, C> = T extends undefined ? C | undefined : C;
+
 export type Static<S extends SchemaType> = S["static"] extends {
    [key: string]: any;
 }

@@ -6,7 +6,7 @@ import { describe, expect, test } from "bun:test";
 import { string, number, object, anyOf, array } from "../";
 import type { SchemaType } from "../schema";
 
-describe.skip("ref", () => {
+describe("ref", () => {
    test("basic", () => {
       const referenced = string({ $id: "string" });
       const schema = ref(referenced);
@@ -152,23 +152,36 @@ describe.skip("ref", () => {
          limit: number(),
          with: refId("#"),
       });
-      expect(schema.coerce({ limit: 1, with: { limit: "1" } })).toEqual({
+      expect(schema.coerce({ limit: 1, with: { limit: "2" } })).toEqual({
          limit: 1,
          with: {
-            limit: 1,
+            limit: 2,
          },
       });
    });
 
-   test("rec within union", () => {
+   test("rec object", () => {
+      const schema = object({
+         limit: number(),
+         with: refId("#").optional(),
+      });
+      expect(schema.coerce({ limit: 1, with: { limit: "2" } })).toEqual({
+         limit: 1,
+         with: {
+            limit: 2,
+         },
+      });
+   });
+
+   test("rec within object & union", () => {
       const schema = object({
          limit: number(),
          with: anyOf([string(), refId("#")]).optional(),
       });
-      expect(schema.coerce({ limit: 1, with: { limit: "1" } })).toEqual({
+      expect(schema.coerce({ limit: 1, with: { limit: "2" } })).toEqual({
          limit: 1,
          with: {
-            limit: 1,
+            limit: 2,
          },
       });
    });
@@ -182,7 +195,7 @@ describe.skip("ref", () => {
       expect(s.coerce({ id: 1 })).toEqual({ id: "1" } as any);
    });
 
-   describe.skip("recursive", () => {
+   describe("recursive", () => {
       test("types", () => {
          const s = recursive((tthis) =>
             object({
@@ -205,17 +218,12 @@ describe.skip("ref", () => {
       });
 
       test("types with self fn", () => {
-         const withSchema = <T>(self: SchemaType) => {
-            return anyOf([self, array(self)]) as T;
-         };
-
-         const s = recursive((tthis) =>
+         const s = recursive((self) =>
             object({
                id: string(),
-               nodes: withSchema(tthis),
+               nodes: self,
             }).partial()
          );
-         console.log("types with self fn", s.toJSON());
 
          type Inferred = Static<typeof s>;
          expectTypeOf<Inferred>().toEqualTypeOf<{
@@ -232,6 +240,39 @@ describe.skip("ref", () => {
 
          const example = {
             id: 1,
+            nodes: { id: 2 },
+         };
+         expect(s.coerce(example)).toEqual({
+            id: "1",
+            nodes: {
+               id: "2",
+            },
+         });
+      });
+
+      test("types with self fn & union/array", () => {
+         const s = recursive((self) =>
+            object({
+               id: string(),
+               nodes: anyOf([self, array(self)]),
+            }).partial()
+         );
+
+         type Inferred = Static<typeof s>;
+         expectTypeOf<Inferred>().toEqualTypeOf<{
+            id?: string;
+            nodes?: unknown;
+            [key: string]: unknown;
+         }>();
+         type Coerced = StaticCoerced<typeof s>;
+         expectTypeOf<Coerced>().toEqualTypeOf<{
+            id?: string;
+            nodes?: any;
+            [key: string]: unknown;
+         }>();
+
+         const example = {
+            id: 1,
             nodes: { id: 2, nodes: [] },
          };
          expect(s.coerce(example)).toEqual({
@@ -241,11 +282,6 @@ describe.skip("ref", () => {
                nodes: [],
             },
          });
-         console.log(
-            s.validate(example, {
-               ignoreUnsupported: true,
-            })
-         );
       });
 
       test("raw", () => {
@@ -256,13 +292,6 @@ describe.skip("ref", () => {
             })
          );
          type Inferred = Static<typeof s>;
-         console.log("raw", s.toJSON());
-         console.log(
-            "obj",
-            object({
-               id: string(),
-            }).toJSON()
-         );
 
          expect(s.toJSON()).toEqual({
             type: "object",

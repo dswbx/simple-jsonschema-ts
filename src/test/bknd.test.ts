@@ -307,11 +307,11 @@ describe("misc", () => {
 
       type RepoQueryOut = s.StaticCoerced<typeof repoQuery>;
       expectTypeOf<RepoQueryOut>().toEqualTypeOf<{
-         limit: number;
-         offset: number;
-         sort: { by: string; dir: "asc" | "desc" };
-         select: string[];
-         join: string[];
+         limit?: number;
+         offset?: number;
+         sort?: { by: string; dir: "asc" | "desc" };
+         select?: string[];
+         join?: string[];
          [key: string]: unknown;
       }>();
 
@@ -490,8 +490,6 @@ describe("misc", () => {
          // allow "id", "id,title" – but not "id," or "not allowed"
          pattern: "^(?:[a-zA-Z_$][\\w$]*)(?:,[a-zA-Z_$][\\w$]*)*$",
       });
-      const numberOrString = <N extends s.NumberSchema>(c: N = {} as N) =>
-         s.anyOf([s.number(c), s.string()]);
       const stringArray = s.anyOf(
          [
             stringIdentifier,
@@ -598,8 +596,8 @@ describe("misc", () => {
       const repoQuery = s
          .recursive((self) =>
             s.object({
-               limit: numberOrString({ default: 10 }),
-               offset: numberOrString({ default: 0 }),
+               limit: s.number({ default: 10 }),
+               offset: s.number({ default: 0 }),
                sort,
                where,
                select: stringArray,
@@ -620,15 +618,20 @@ describe("misc", () => {
       };
       type RepoQuery = s.StaticCoerced<typeof repoQuery>;
 
-      let example = {
-         limit: 10,
+      expect(
+         repoQuery.coerce({
+            limit: 1,
+            with: {
+               posts: { limit: "1", with: ["comments"] },
+            },
+         })
+      ).toEqual({
+         limit: 1,
          with: {
-            posts: { limit: "10", with: ["comments"] },
+            posts: { limit: 1, with: { comments: {} } },
          },
-      };
-
-      /* console.log("coerced", repoQuery.coerce({ limit: false }));
-      console.log("coerced", repoQuery.coerce({ limit: "10" }));
+      });
+      /*console.log("coerced", repoQuery.coerce({ limit: "10" }));
       console.log("coerced2", s.number().coerce(false)); */
 
       /* console.log("parse", repoQuery.coerce(example));

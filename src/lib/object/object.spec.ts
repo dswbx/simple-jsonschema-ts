@@ -181,11 +181,54 @@ describe("object", () => {
       }
 
       {
+         const schema = object({
+            name: string({ coerce: (v) => v as "what" }).optional(),
+            age: number(),
+         });
+         type Inferred2 = (typeof schema)["static"];
+         expectTypeOf<Inferred2>().toEqualTypeOf<{
+            name?: string;
+            age: number;
+            [key: string]: unknown;
+         }>();
+         type Inferred = Static<typeof schema>;
+         expectTypeOf<Inferred>().toEqualTypeOf<{
+            name?: string;
+            age: number;
+            [key: string]: unknown;
+         }>();
+         type Coerced2 = (typeof schema)["coerced"];
+         expectTypeOf<Coerced2>().toEqualTypeOf<{
+            name?: "what";
+            age: number;
+            [key: string]: unknown;
+         }>();
+         type Coerced = StaticCoerced<typeof schema>;
+         expectTypeOf<Coerced>().toEqualTypeOf<{
+            name?: "what";
+            age: number;
+            [key: string]: unknown;
+         }>();
+      }
+
+      {
          // partial with coerce
          const schema = object({
-            name: string({ coerce: (v) => v as string | undefined }),
+            name: string({ coerce: (v) => v as string }),
             age: number(),
          }).partial();
+         type Inferred = Static<typeof schema>;
+         expectTypeOf<Inferred>().toEqualTypeOf<{
+            name?: string;
+            age?: number;
+            [key: string]: unknown;
+         }>();
+         type Coerced2 = (typeof schema)["coerced"];
+         expectTypeOf<Coerced2>().toEqualTypeOf<{
+            name?: string;
+            age?: number;
+            [key: string]: unknown;
+         }>();
          type Coerced = StaticCoerced<typeof schema>;
          expectTypeOf<Coerced>().toEqualTypeOf<{
             name?: string;
