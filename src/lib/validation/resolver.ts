@@ -1,20 +1,22 @@
-import type { TSchema } from "../schema";
+import type { SchemaType } from "../schema";
 import { getJsonPath } from "../utils/path";
 import { isSchema, isString } from "../utils";
 
 export class Resolver {
-   private cache: Map<string, TSchema>;
+   private cache: Map<string, SchemaType>;
 
-   constructor(readonly root: TSchema) {
-      this.cache = new Map<string, TSchema>();
+   constructor(readonly root: SchemaType) {
+      this.cache = new Map<string, SchemaType>();
    }
 
-   hasRef<S extends TSchema>(s: S, value: unknown): s is S & { $ref: string } {
-      //if (s[$kind] === "recursive") return false;
+   hasRef<S extends SchemaType>(
+      s: S,
+      value: unknown
+   ): s is S & { $ref: string } {
       return value !== undefined && "$ref" in s && isString(s.$ref);
    }
 
-   resolve(ref: string): TSchema {
+   resolve(ref: string): SchemaType {
       let refSchema = this.cache.get(ref);
       if (!refSchema) {
          refSchema = getJsonPath(this.root, ref);

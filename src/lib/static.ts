@@ -1,4 +1,4 @@
-import type { SchemaType, TAnySchema } from "./schema";
+import type { SchemaType } from "./schema";
 
 // from https://github.com/type-challenges/type-challenges/issues/28200
 export type Merge<T> = {

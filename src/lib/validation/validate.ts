@@ -1,4 +1,4 @@
-import type { TSchema } from "../schema";
+import type { SchemaType } from "../schema";
 import type { ErrorDetail } from "../utils/details";
 import {
    _type,
@@ -35,10 +35,9 @@ import {
 } from "./keywords";
 import { format } from "./format";
 import { Resolver } from "./resolver";
-import { $kind } from "../symbols";
 
 type TKeywordFn = (
-   schema: TSchema,
+   schema: object,
    value: unknown,
    opts: Omit<ValidationOptions, "coerce">
 ) => ValidationResult;
@@ -96,7 +95,7 @@ export type ValidationResult = {
 };
 
 export function validate(
-   s: TSchema,
+   s: SchemaType,
    _value: unknown,
    opts: ValidationOptions = {}
 ): ValidationResult {
@@ -111,7 +110,7 @@ export function validate(
       depth: opts.depth ? opts.depth + 1 : 0,
    };
    const value = structuredClone(
-      opts?.coerce
+      opts?.coerce && s.coerce
          ? s.coerce(_value, {
               resolver: ctx.resolver,
               depth: ctx.depth,
@@ -132,7 +131,7 @@ export function validate(
 
    // check $ref
    if (ctx.resolver.hasRef(s, value)) {
-      const result = ctx.resolver.resolve(s.$ref).validate(value, {
+      const result = ctx.resolver.resolve(s.$ref!).validate(value, {
          ...ctx,
          errors: [],
       });

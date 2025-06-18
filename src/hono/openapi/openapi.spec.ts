@@ -58,7 +58,7 @@ describe("openapi", () => {
 
       const res = await app.request("/");
       const data = await res.json();
-      console.log(JSON.stringify(data, null, 2));
-      console.log(schemaToSpec(s.object({ name: s.string() }), "query"));
+      /* console.log(JSON.stringify(data, null, 2));
+      console.log(schemaToSpec(s.object({ name: s.string() }), "query")); */
    });
 });

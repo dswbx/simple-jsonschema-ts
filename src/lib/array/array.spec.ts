@@ -156,7 +156,7 @@ describe("array", () => {
    test("coerce", () => {
       {
          // expect nothing to happen, including no error
-         expect(array().coerce("")).toBe("");
+         expect(array().coerce("")).toBe("" as any);
       }
 
       {

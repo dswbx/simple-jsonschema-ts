@@ -2,10 +2,9 @@ import { expectTypeOf } from "expect-type";
 import type { Static, StaticCoerced } from "../static";
 import { object } from "./object";
 import { record } from "./record";
-import { type TSchema } from "../schema";
 import { assertJson } from "../assert";
-import { describe, expect, test } from "bun:test";
-import { string, number, boolean, array, anyOf, any } from "../";
+import { describe, test } from "bun:test";
+import { string, number, anyOf, any } from "../";
 
 describe("record", () => {
    test("record", () => {

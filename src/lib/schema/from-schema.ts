@@ -20,9 +20,13 @@ function eachObject<T>(
    ) as Record<string, T>;
 }
 
-export function fromSchema<Type = unknown>(_schema: any): lib.TSchema<Type> {
+export function fromSchema<Type = unknown>(
+   _schema: any
+): lib.SchemaType<any, Type> {
    if (isBoolean(_schema)) {
-      return lib.schema(Boolean(_schema)) as any;
+      return (
+         Boolean(_schema) ? lib.SchemaType.true() : lib.SchemaType.false()
+      ) as any;
    }
 
    const schema = structuredClone(_schema);
@@ -111,5 +115,5 @@ export function fromSchema<Type = unknown>(_schema: any): lib.TSchema<Type> {
    }
 
    //console.log("--fallback", { schema });
-   return lib.schema(schema as any);
+   return lib.any(schema as any);
 }

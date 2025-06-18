@@ -1,6 +1,5 @@
 import { expectTypeOf } from "expect-type";
 import type { Static, StaticCoerced } from "../static";
-import { $kind } from "../symbols";
 import { anyOf, oneOf } from "./union";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";

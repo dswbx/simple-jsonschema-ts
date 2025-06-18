@@ -2,7 +2,6 @@ import { describe, expect, test } from "bun:test";
 import { any, literal, LiteralType } from "./misc";
 import { expectTypeOf } from "expect-type";
 import type { Static, StaticCoerced } from "../static";
-import { $kind } from "../symbols";
 import { assertJson } from "../assert";
 import { object } from "../object/object";
 import type { TCustomType } from ".";
@@ -17,8 +16,6 @@ describe("any", () => {
       type Coerced = StaticCoerced<typeof schema>;
       expectTypeOf<Coerced>().toEqualTypeOf<any>();
 
-      expect<any>(schema[$kind]).toEqual("any");
-
       assertJson(schema, {});
    });
 
@@ -32,7 +29,10 @@ describe("any", () => {
          [key: string]: unknown;
       }>();
       type Coerced = StaticCoerced<typeof schema>;
-      expectTypeOf<Coerced>().toEqualTypeOf<{ name?: any }>();
+      expectTypeOf<Coerced>().toEqualTypeOf<{
+         name?: any;
+         [key: string]: unknown;
+      }>();
 
       assertJson(schema, {
          type: "object",

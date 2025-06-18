@@ -4,7 +4,13 @@ export class AnyType<const O extends TCustomType> extends SchemaType<
    O,
    any,
    any
-> {}
+> {
+   constructor(options: O) {
+      super(options);
+      // @ts-ignore
+      this.type = options.type;
+   }
+}
 export const any = <const O extends TCustomType>(options: O = {} as O) =>
    new AnyType(options);
 

@@ -1,7 +1,7 @@
 import { expectTypeOf } from "expect-type";
 import type { Static, StaticCoerced } from "../static";
 import { object } from "./object";
-import { SchemaType, type TSchema } from "../schema";
+import { SchemaType } from "../schema";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
 import { string } from "../string/string";
@@ -9,7 +9,6 @@ import { number } from "../number/number";
 import { boolean } from "../boolean/boolean";
 import { array } from "../array/array";
 import { any } from "../schema/misc";
-import { $kind } from "../symbols";
 
 describe("object", () => {
    test("basic", () => {
@@ -21,10 +20,6 @@ describe("object", () => {
    });
 
    test("types", () => {
-      const o = object({
-         type: string(),
-      });
-
       const one = object({
          type: string({ const: "ref/resource" }),
          uri: string().optional(),
@@ -40,6 +35,13 @@ describe("object", () => {
       type OneInferred = Static<typeof one>;
       //   ^?
       expectTypeOf<OneInferred>().toEqualTypeOf<{
+         type: "ref/resource";
+         uri?: string;
+         [key: string]: unknown;
+      }>();
+
+      type OneCoerced = StaticCoerced<typeof one>;
+      expectTypeOf<OneCoerced>().toEqualTypeOf<{
          type: "ref/resource";
          uri?: string;
          [key: string]: unknown;
@@ -170,6 +172,26 @@ describe("object", () => {
             },
             additionalProperties: false,
          });
+
+         type Coerced = StaticCoerced<typeof schema>;
+         expectTypeOf<Coerced>().toEqualTypeOf<{
+            name?: string;
+            age?: number;
+         }>();
+      }
+
+      {
+         // partial with coerce
+         const schema = object({
+            name: string({ coerce: (v) => v as string | undefined }),
+            age: number(),
+         }).partial();
+         type Coerced = StaticCoerced<typeof schema>;
+         expectTypeOf<Coerced>().toEqualTypeOf<{
+            name?: string;
+            age?: number;
+            [key: string]: unknown;
+         }>();
       }
 
       {
@@ -346,7 +368,6 @@ describe("object", () => {
                   additionalProperties: boolean(),
                }
             );
-            console.log(schema.toJSON());
             const result = schema.validate({
                foo: 1,
                bar: 2,
@@ -402,7 +423,7 @@ describe("object", () => {
          name: string(),
          age: number(),
       });
-      expect(schema.coerce("{}")).toEqual({});
+      expect(schema.coerce("{}")).toEqual({} as any);
       expect(schema.coerce('{"name": "John", "age": "30"}')).toEqual({
          name: "John",
          age: 30,
@@ -420,7 +441,10 @@ describe("object", () => {
          type StringCoerced = StaticCoerced<typeof s>;
          expectTypeOf<StringCoerced>().toEqualTypeOf<"asdf">();
          type Coerced = StaticCoerced<typeof schema>;
-         expectTypeOf<Coerced>().toEqualTypeOf<{ name: "asdf" }>();
+         expectTypeOf<Coerced>().toEqualTypeOf<{
+            name: "asdf";
+            [key: string]: unknown;
+         }>();
       }
 
       {
@@ -452,6 +476,7 @@ describe("object", () => {
          expectTypeOf<Coerced>().toEqualTypeOf<{
             url: "asdf";
             force?: boolean;
+            [key: string]: unknown;
          }>();
       }
    });

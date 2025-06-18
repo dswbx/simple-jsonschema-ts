@@ -8,10 +8,6 @@ import { expectTypeOf } from "expect-type";
 describe("hono middleware", () => {
    test("should return the validated json", async () => {
       const app = new Hono();
-      const schema = s.object({
-         name: s.string(),
-         test: s.string().optional(),
-      });
       app.post(
          "/json",
          jsc(
@@ -51,11 +47,13 @@ describe("hono middleware", () => {
          "/query",
          jsc(
             "query",
-            s.partialObject({
-               int: s.number(),
-               bool: s.boolean(),
-               str: s.string(),
-            })
+            s
+               .object({
+                  int: s.number(),
+                  bool: s.boolean(),
+                  str: s.string(),
+               })
+               .partial()
          ),
          (c) => {
             const json = c.req.valid("query");
@@ -103,15 +101,17 @@ describe("hono middleware", () => {
       type Coerced = s.StaticCoerced<typeof schema>;
       //   ^?
       expectTypeOf<Coerced>().toEqualTypeOf<{
-         url?: "what";
+         url: "what";
          force: true;
+         [key: string]: unknown;
       }>();
       app.get("/query", jsc("query", schema), (c) => {
          const json = c.req.valid("query");
          //    ^?
          expectTypeOf<typeof json>().toEqualTypeOf<{
-            url?: "what";
+            url: "what";
             force: true;
+            [key: string]: unknown;
          }>();
          return c.json(json);
       });

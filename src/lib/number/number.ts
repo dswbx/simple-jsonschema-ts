@@ -1,4 +1,4 @@
-import { SchemaType, type TCustomSchema, type TCustomType } from "../schema";
+import { SchemaType, type TCustomType } from "../schema";
 import { isString } from "../utils";
 import type { CoercionOptions } from "../validation/coerce";
 

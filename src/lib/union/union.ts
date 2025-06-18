@@ -41,7 +41,7 @@ export abstract class UnionType<
       this.schemas = schemas;
    }
 
-   override coerce(value: unknown, opts: CoercionOptions = {}): any {
+   override _coerce(value: unknown, opts: CoercionOptions = {}): any {
       if ("coerce" in this._schema && this._schema.coerce !== undefined) {
          return this._schema.coerce.bind(this)(value, opts);
       }
@@ -51,6 +51,7 @@ export abstract class UnionType<
          resolver: opts.resolver,
          coerce: true,
       });
+      //console.log("m", { schemas: this.schemas, value, opts, m });
 
       if (m.length > 0) {
          return m[0]!.coerce(value, opts);

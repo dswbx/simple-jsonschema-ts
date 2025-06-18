@@ -7,7 +7,7 @@ import type {
 } from "hono";
 import { validator as honoValidator } from "hono/validator";
 import type { Static, StaticCoerced } from "../lib";
-import type { TAnySchema } from "../lib/schema";
+import type { SchemaType } from "../lib/schema";
 import { $symbol } from "./shared";
 
 export type Options = {
@@ -32,8 +32,7 @@ export type Hook<T, E extends Env, P extends string> = (
 ) => Response | Promise<Response> | void;
 
 export const validator = <
-   // @todo: somehow hono prevents the usage of TSchema
-   Schema extends TAnySchema,
+   Schema extends SchemaType,
    Target extends keyof ValidationTargets,
    E extends Env,
    P extends string,

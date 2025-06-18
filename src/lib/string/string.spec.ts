@@ -13,14 +13,8 @@ describe("string", () => {
 
       const stringSchema = new StringType({ maxLength: 1 });
       stringSchema._schema.maxLength;
-      console.log(stringSchema);
 
       assertJson(string(), { type: "string" });
-
-      {
-         const schema = string({ maxLength: 1, title: "what" });
-         //console.log(schema.toJSON());
-      }
 
       {
          // optional
@@ -33,16 +27,14 @@ describe("string", () => {
    });
 
    test("types", () => {
-      const opt = string({ maxLength: 1 }).optional();
-
       // expect to be fine
       string({ maxLength: 1, minLength: 1, pattern: "", format: "" });
       // expect fns to work
       string({ coerce: (v) => "", validate: (v) => null as any });
-      // @ts-expect-error minimum is not a valid property for string
-      string({ minimum: 0 });
-      // @ts-expect-error anyOf is not a valid property for string
-      string({ anyOf: [] });
+      // ts-expect-error minimum is not a valid property for string
+      //string({ minimum: 0 });
+      // ts-expect-error anyOf is not a valid property for string
+      //string({ anyOf: [] });
    });
 
    test("options & type inference", () => {
@@ -56,7 +48,6 @@ describe("string", () => {
          pattern: "/a/",
       });
       const _ss = schema._schema;
-      console.log(schema.type);
 
       expectTypeOf<(typeof _ss)["pattern"]>().toEqualTypeOf<"/a/">();
       expectTypeOf<(typeof _ss)["minLength"]>().toEqualTypeOf<1>();

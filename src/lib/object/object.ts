@@ -39,19 +39,22 @@ export interface ObjectSchema extends TCustomType {
 // @todo: add generic coerce and template that also works with additionalProperties, etc.
 
 export class ObjectType<
-   P extends TProperties,
-   const O extends ObjectSchema,
+   P extends TProperties = TProperties,
+   const O extends ObjectSchema = ObjectSchema,
    Out = O extends { additionalProperties: false }
       ? ObjectStatic<P>
-      : Simplify<Merge<ObjectStatic<P> & { [key: string]: unknown }>>
-> extends SchemaType<O, Out, ObjectCoerced<P>> {
+      : Simplify<Merge<ObjectStatic<P> & { [key: string]: unknown }>>,
+   OutCoerced = O extends { additionalProperties: false }
+      ? ObjectCoerced<P>
+      : Simplify<Merge<ObjectCoerced<P> & { [key: string]: unknown }>>
+> extends SchemaType<O, Out, OutCoerced> {
    protected _template = {} as any;
    readonly type = "object";
    readonly properties: P;
 
    constructor(properties: P, options: O = {} as O) {
       const required: string[] = [];
-      for (const [key, value] of Object.entries(properties)) {
+      for (const [key, value] of Object.entries(properties || {})) {
          invariant(
             isSchema(value),
             "properties must be managed schemas",
@@ -128,7 +131,7 @@ export class ObjectType<
       return result;
    }
 
-   override coerce(value: unknown, opts: CoercionOptions = {}): any {
+   override _coerce(value: unknown, opts: CoercionOptions = {}): any {
       if (typeof value === "string") {
          // if stringified object
          if (value.match(/^\{/)) {
@@ -158,49 +161,3 @@ export const object = <P extends TProperties, const O extends ObjectSchema>(
    properties: P,
    options: O = {} as O
 ) => new ObjectType(properties, options);
-
-/* function template(this: TSchema, opts: TSchemaTemplateOptions = {}) {
-   const result: Record<string, unknown> = {};
-
-   if (this.properties) {
-      for (const [key, property] of Object.entries(this.properties)) {
-         if (opts.withOptional !== true && !this.required?.includes(key)) {
-            continue;
-         }
-
-         // @ts-ignore
-         const value = property.template(opts);
-         if (value !== undefined) {
-            result[key] = value;
-         }
-      }
-   }
-   return result;
-}
-
-function coerce(this: TSchema, _value: unknown, opts: CoercionOptions = {}) {
-   let value = _value;
-   if (typeof value === "string") {
-      // if stringified object
-      if (value.match(/^\{/) || value.match(/^\[/)) {
-         value = JSON.parse(value);
-      }
-   }
-
-   if (typeof value !== "object" || value === null) {
-      return undefined;
-   }
-
-   if (this.properties) {
-      for (const [key, property] of Object.entries(this.properties)) {
-         const v = value[key];
-         if (v !== undefined) {
-            // @ts-ignore
-            value[key] = property.coerce(v, opts);
-         }
-      }
-   }
-
-   return value;
-}
- */

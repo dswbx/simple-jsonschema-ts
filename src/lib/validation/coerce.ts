@@ -1,5 +1,5 @@
 import { Resolver } from "./resolver";
-import type { TSchema } from "../schema";
+import type { SchemaType } from "../schema";
 
 export type CoercionOptions = {
    resolver?: Resolver;
@@ -8,7 +8,7 @@ export type CoercionOptions = {
 
 // placeholder file
 export function coerce(
-   s: TSchema,
+   s: SchemaType,
    _value: unknown,
    opts: CoercionOptions = {}
 ): unknown {
