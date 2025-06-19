@@ -1,4 +1,4 @@
-import type { ObjectType, SchemaType } from "../../lib";
+import type { ObjectSchema } from "jsonv-ts";
 import * as t from "./types";
 
 export function isPlainObject(
@@ -53,7 +53,7 @@ const honoTargetToRequestBody = {
 } as const;
 
 export function schemaToSpec(
-   obj: ObjectType,
+   obj: ObjectSchema,
    target: string
 ): Omit<t.OperationObject, "responses"> {
    const _in = honoTargetToParameterin[target];
@@ -65,8 +65,9 @@ export function schemaToSpec(
             return {
                name: key,
                in: _in,
-               required: obj._schema.required?.includes(key) || undefined,
-               description: subSchema._schema.description || undefined,
+               required: obj.required?.includes(key) || undefined,
+               // @ts-expect-error
+               description: subSchema?.description || undefined,
                schema: structuredClone(subSchema.toJSON()),
             };
          }),
@@ -78,8 +79,8 @@ export function schemaToSpec(
                [_requestBody.type]: {
                   schema: structuredClone(obj.toJSON()),
                   example:
-                     obj._schema.examples?.[0] ??
-                     obj.template({ withOptional: true }),
+                     // @ts-expect-error
+                     obj.examples?.[0] ?? obj.template({ withOptional: true }),
                },
             },
          },

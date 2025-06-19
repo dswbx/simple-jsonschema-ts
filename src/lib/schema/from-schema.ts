@@ -1,5 +1,6 @@
 import * as lib from "..";
 import { InvalidRawSchemaError } from "../errors";
+import type { JSONSchema } from "../types";
 import { isArray, isBoolean, isObject, isTypeSchema } from "../utils";
 
 function eachArray<T>(array: any | any[], fn: (item: any) => T): T[] {
@@ -20,13 +21,12 @@ function eachObject<T>(
    ) as Record<string, T>;
 }
 
-export function fromSchema<Type = unknown>(
-   _schema: any
-): lib.SchemaType<any, Type> {
+export type AnySchema<Type = unknown> = lib.Schema<any, Type> &
+   JSONSchema<lib.Schema>;
+
+export function fromSchema<Type = unknown>(_schema: any): AnySchema<Type> {
    if (isBoolean(_schema)) {
-      return (
-         Boolean(_schema) ? lib.SchemaType.true() : lib.SchemaType.false()
-      ) as any;
+      return lib.booleanSchema(_schema) as any;
    }
 
    const schema = structuredClone(_schema);

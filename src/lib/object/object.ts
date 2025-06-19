@@ -1,8 +1,10 @@
 import {
-   type TCustomType,
-   type TSchemaTemplateOptions,
-   SchemaType,
-} from "../schema";
+   Schema,
+   symbol,
+   type ISchemaOptions,
+   type StrictOptions,
+   booleanSchema,
+} from "../schema/schema";
 import type {
    Merge,
    OptionalUndefined,
@@ -11,9 +13,8 @@ import type {
    StaticCoerced,
 } from "../static";
 import { invariant, isSchema } from "../utils";
-import type { CoercionOptions } from "../validation/coerce";
 
-export type TProperties = { [key: string]: SchemaType };
+export type TProperties = { [key: string]: Schema };
 
 type ObjectStatic<T extends TProperties> = Simplify<
    OptionalUndefined<{
@@ -26,64 +27,121 @@ type ObjectCoerced<T extends TProperties> = Simplify<
    }>
 >;
 
-export interface ObjectSchema extends TCustomType {
-   $defs?: Record<string, SchemaType>;
-   patternProperties?: { [key: string]: SchemaType };
-   additionalProperties?: SchemaType | false;
+export interface IObjectOptions extends ISchemaOptions {
+   $defs?: Record<string, Schema>;
+   patternProperties?: { [key: string]: Schema };
+   additionalProperties?: Schema | false;
    minProperties?: number;
    maxProperties?: number;
-   propertyNames?: SchemaType;
+   propertyNames?: Schema;
 }
 
 // @todo: add base object type
 // @todo: add generic coerce and template that also works with additionalProperties, etc.
 
-export class ObjectType<
+export class ObjectSchema<
    P extends TProperties = TProperties,
-   const O extends ObjectSchema = ObjectSchema,
-   Out = O extends { additionalProperties: false }
+   const O extends IObjectOptions = IObjectOptions
+> extends Schema<
+   O,
+   O extends { additionalProperties: false }
       ? ObjectStatic<P>
       : Simplify<Merge<ObjectStatic<P> & { [key: string]: unknown }>>,
-   OutCoerced = O extends { additionalProperties: false }
+   O extends { additionalProperties: false }
       ? ObjectCoerced<P>
       : Simplify<Merge<ObjectCoerced<P> & { [key: string]: unknown }>>
-> extends SchemaType<O, Out, OutCoerced> {
-   protected _template = {} as any;
-   readonly type = "object";
-   readonly properties: P;
+> {
+   override readonly type = "object";
+   properties: P;
+   required: string[] | undefined;
 
-   constructor(properties: P, options: O = {} as O) {
-      const required: string[] = [];
+   constructor(properties: P, o?: O) {
+      let required: string[] | undefined = [];
       for (const [key, value] of Object.entries(properties || {})) {
          invariant(
             isSchema(value),
             "properties must be managed schemas",
             value
          );
-         if (!value._optional) {
+         if (!value[symbol].optional) {
             required.push(key);
          }
       }
 
       const additionalProperties =
-         options.additionalProperties === false
-            ? SchemaType.false()
-            : options.additionalProperties;
+         o?.additionalProperties === false
+            ? booleanSchema(false)
+            : o?.additionalProperties;
 
-      super({
-         ...options,
-         additionalProperties,
-         properties,
-         required: required.length > 0 ? required : undefined,
-      });
+      required = required.length > 0 ? required : undefined;
+      super(
+         {
+            ...o,
+            additionalProperties,
+            properties,
+            required,
+         } as any,
+         {
+            template: (opts) => {
+               const result: Record<string, unknown> = {};
+
+               if (this.properties) {
+                  for (const [key, property] of Object.entries(
+                     this.properties
+                  )) {
+                     if (
+                        opts?.withOptional !== true &&
+                        !this.required?.includes(key)
+                     ) {
+                        continue;
+                     }
+
+                     // @ts-ignore
+                     const value = property.template(opts);
+                     if (value !== undefined) {
+                        result[key] = value;
+                     }
+                  }
+               }
+               return result;
+            },
+            coerce: (value, opts) => {
+               if (typeof value === "string") {
+                  // if stringified object
+                  if (value.match(/^\{/)) {
+                     value = JSON.parse(value);
+                  }
+               }
+
+               if (typeof value !== "object" || value === null) {
+                  return undefined;
+               }
+
+               if (this.properties) {
+                  for (const [key, property] of Object.entries(
+                     this.properties
+                  )) {
+                     const v = value[key];
+                     if (v !== undefined) {
+                        // @ts-ignore
+                        value[key] = property.coerce(v, opts);
+                     }
+                  }
+               }
+
+               return value;
+            },
+         }
+      );
       this.properties = properties;
+      this.required = required;
    }
 
    strict() {
-      return new ObjectType(this.properties, {
-         ...this.getSchema(),
+      return new ObjectSchema(this.properties, {
+         ...this[symbol].raw,
          additionalProperties: false,
-      }) as unknown as ObjectType<
+      }) as unknown as ObjectSchema<
          P,
          Merge<O & { additionalProperties: false }>
       >;
@@ -92,72 +150,28 @@ export class ObjectType<
    partial() {
       const props = { ...this.properties };
       for (const [, prop] of Object.entries(props)) {
-         prop._optional = true;
+         prop[symbol].optional = true;
       }
 
-      return new ObjectType(props, this.getSchema()) as unknown as ObjectType<
+      return new ObjectSchema(
+         props,
+         this[symbol].raw
+      ) as unknown as ObjectSchema<
          {
-            [Key in keyof P]: P[Key] extends SchemaType<
-               infer O,
-               infer T,
-               infer C
-            >
-               ? SchemaType<Exclude<O, boolean>, T | undefined, C | undefined>
+            [Key in keyof P]: P[Key] extends Schema<infer O>
+               ? Schema<
+                    O,
+                    P[Key][typeof symbol]["static"] | undefined,
+                    P[Key][typeof symbol]["coerced"] | undefined
+                 >
                : never;
          },
          O
       >;
    }
-
-   override template(opts: TSchemaTemplateOptions = {}) {
-      const result: Record<string, unknown> = {};
-
-      if (this.properties) {
-         for (const [key, property] of Object.entries(this.properties)) {
-            if (
-               opts.withOptional !== true &&
-               !this._schema.required?.includes(key)
-            ) {
-               continue;
-            }
-
-            // @ts-ignore
-            const value = property.template(opts);
-            if (value !== undefined) {
-               result[key] = value;
-            }
-         }
-      }
-      return result;
-   }
-
-   override _coerce(value: unknown, opts: CoercionOptions = {}): any {
-      if (typeof value === "string") {
-         // if stringified object
-         if (value.match(/^\{/)) {
-            value = JSON.parse(value);
-         }
-      }
-
-      if (typeof value !== "object" || value === null) {
-         return undefined;
-      }
-
-      if (this.properties) {
-         for (const [key, property] of Object.entries(this.properties)) {
-            const v = value[key];
-            if (v !== undefined) {
-               // @ts-ignore
-               value[key] = property.coerce(v, opts);
-            }
-         }
-      }
-
-      return value;
-   }
 }
 
-export const object = <P extends TProperties, const O extends ObjectSchema>(
+export const object = <P extends TProperties, const O extends IObjectOptions>(
    properties: P,
-   options: O = {} as O
-) => new ObjectType(properties, options);
+   options?: StrictOptions<IObjectOptions, O>
+): ObjectSchema<P, O> & O => new ObjectSchema(properties, options) as any;

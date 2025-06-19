@@ -3,7 +3,12 @@ import type { Static, StaticCoerced } from "../static";
 import { anyOf, oneOf } from "./union";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
-import { string, number, object, array, any, integer, literal } from "../";
+import { string } from "../string/string";
+import { number, integer } from "../number/number";
+import { object } from "../object/object";
+import { array } from "../array/array";
+import { any, literal } from "../schema/misc";
+import type { symbol } from "../schema/schema";
 
 describe("union", () => {
    test("anyOf", () => {
@@ -35,13 +40,13 @@ describe("union", () => {
          type: string({ const: "ref/resource" }),
          uri: string().optional(),
       });
-      type OneStatic = (typeof one)["static"];
+      type OneStatic = (typeof one)[typeof symbol]["static"];
       //   ^?
       type OneInferred = Static<typeof one>;
       //   ^?
 
       const aobj = array(object({ name: string() }));
-      type AobjStatic = (typeof aobj)["static"];
+      type AobjStatic = (typeof aobj)[typeof symbol]["static"];
       //   ^?
       type AobjInferred = Static<typeof aobj>;
       //   ^?
@@ -53,7 +58,7 @@ describe("union", () => {
             name: string(),
          }),
       ]);
-      type AnyOfStatic = (typeof schema)["static"];
+      type AnyOfStatic = (typeof schema)[typeof symbol]["static"];
       //   ^?
       expectTypeOf<AnyOfStatic>().toEqualTypeOf<
          | {
@@ -153,8 +158,12 @@ describe("union", () => {
             return [String(value)];
          },
       });
-      type Inferred = StaticCoerced<typeof schema>;
-      expectTypeOf<Inferred>().toEqualTypeOf<string[]>();
+      type Inferred = Static<typeof schema>;
+      expectTypeOf<Inferred>().toEqualTypeOf<string | string[]>();
+      type Coerced = (typeof schema)[typeof symbol]["coerced"];
+      expectTypeOf<Coerced>().toEqualTypeOf<string[]>();
+      type Coerced2 = StaticCoerced<typeof schema>;
+      expectTypeOf<Coerced2>().toEqualTypeOf<string[]>();
 
       expect(schema.coerce("test")).toEqual(["test"]);
       expect(schema.coerce("test,test2")).toEqual(["test", "test2"]);

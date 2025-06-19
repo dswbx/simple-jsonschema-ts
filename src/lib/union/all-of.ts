@@ -1,27 +1,24 @@
-import { SchemaType } from "../schema";
+import { Schema, symbol, type StrictOptions } from "../schema";
 import { fromSchema } from "../schema/from-schema";
 import type { Merge } from "../static";
 import { mergeAllOf } from "../utils/merge-allof";
-import type { UnionSchema } from "./union";
+import type { IUnionOptions } from "./union";
 
-export type StaticUnionAllOf<T extends SchemaType[]> = T extends [
+export type StaticUnionAllOf<T extends Schema[]> = T extends [
    infer U,
    ...infer Rest
 ]
-   ? U extends SchemaType
-      ? Rest extends SchemaType[]
-         ? Merge<U["static"] & StaticUnionAllOf<Rest>>
-         : U["static"]
+   ? U extends Schema
+      ? Rest extends Schema[]
+         ? Merge<U[typeof symbol]["static"] & StaticUnionAllOf<Rest>>
+         : U[typeof symbol]["static"]
       : never
    : {};
 
-export const allOf = <
-   const T extends SchemaType[],
-   const O extends UnionSchema
->(
+export const allOf = <const T extends Schema[], const O extends IUnionOptions>(
    schemas: T,
-   options: O = {} as O
-): SchemaType<O, StaticUnionAllOf<T>> => {
+   options?: StrictOptions<IUnionOptions, O>
+): Schema<O, StaticUnionAllOf<T>, StaticUnionAllOf<T>> & O => {
    const clone = JSON.parse(
       JSON.stringify({
          ...options,

@@ -1,20 +1,19 @@
 import { describe, expect, test } from "bun:test";
+import { Schema } from "./schema";
 import { fromSchema } from "./from-schema";
-import { SchemaType } from "../schema";
 
 const expectType = (
-   schema: SchemaType,
+   schema: Schema,
    type: string,
    additional: Record<string, any> = {}
 ) => {
-   expect(schema._schema.type).toEqual(type);
+   expect(schema.type).toEqual(type);
 
    const keys = Object.keys(additional);
    for (const key of keys) {
-      expect(
-         schema._schema[key],
-         `expected ${key} to be ${additional[key]}`
-      ).toEqual(additional[key]);
+      expect(schema[key], `expected ${key} to be ${additional[key]}`).toEqual(
+         additional[key]
+      );
    }
 };
 
@@ -59,7 +58,7 @@ describe("fromSchema", () => {
    });
 
    test("any", () => {
-      expect(fromSchema({ minimum: 2 })._schema.minimum).toEqual(2);
+      expect(fromSchema({ minimum: 2 }).minimum).toEqual(2);
    });
 
    test("objects", () => {
@@ -86,7 +85,7 @@ describe("fromSchema", () => {
          fromSchema({
             type: "array",
             contains: { type: "string" },
-         })._schema.contains!,
+         }).contains!,
          "string"
       );
    });
@@ -109,12 +108,10 @@ describe("fromSchema", () => {
          type: "object",
          properties: { name: { type: "string" }, age: { type: "number" } },
          required: ["name"],
-      }) as any;
+      });
       expect(s.properties?.name?.type).toEqual("string");
-      expect(s.properties?.name?._optional).toBe(false);
       expect(s.properties?.age?.type).toEqual("number");
-      expect(s.properties?.age?._optional).toEqual(true);
-      expect(s._schema.required).toEqual(["name"]);
+      expect(s.required).toEqual(["name"]);
    });
 
    test("examples", () => {
@@ -124,11 +121,11 @@ describe("fromSchema", () => {
             properties: { foo: {}, bar: {} },
             patternProperties: { "^v": {} },
             additionalProperties: false,
-         });
-         expect(s._schema.properties?.foo).toBeInstanceOf(SchemaType);
-         expect(s._schema.properties?.bar).toBeInstanceOf(SchemaType);
-         expect(s._schema.patternProperties?.["^v"]).toBeInstanceOf(SchemaType);
-         expect(s._schema.additionalProperties).toBeInstanceOf(SchemaType);
+         }) as any;
+         expect(s.properties?.foo).toBeInstanceOf(Schema);
+         expect(s.properties?.bar).toBeInstanceOf(Schema);
+         expect(s.patternProperties?.["^v"]).toBeInstanceOf(Schema);
+         expect(s.additionalProperties).toBeInstanceOf(Schema);
       }
 
       {
@@ -138,11 +135,10 @@ describe("fromSchema", () => {
                baz: true,
             },
             required: ["bar"],
-         });
-         expect(s._schema.properties?.bar).toBeInstanceOf(SchemaType);
-         expect(s._schema.properties?.baz).toBeInstanceOf(SchemaType);
-         expect(s._schema.properties?.baz?._optional).toEqual(true);
-         expect(s._schema.required).toEqual(["bar"]);
+         }) as any;
+         expect(s.properties?.bar).toBeInstanceOf(Schema);
+         expect(s.properties?.baz).toBeInstanceOf(Schema);
+         expect(s.required).toEqual(["bar"]);
       }
 
       {
@@ -165,25 +161,15 @@ describe("fromSchema", () => {
             ],
          });
          // @ts-ignore
-         expect(s._schema.oneOf?.[0]?._schema.properties?.bar).toBeInstanceOf(
-            SchemaType
-         );
+         expect(s.oneOf?.[0]?.properties?.bar).toBeInstanceOf(Schema);
          // @ts-ignore
-         expect(s._schema.oneOf?.[0]?._schema.properties?.baz).toBeInstanceOf(
-            SchemaType
-         );
+         expect(s.oneOf?.[0]?.properties?.baz).toBeInstanceOf(Schema);
          // @ts-ignore
-         expect(
-            s._schema.oneOf?.[0]?._schema.properties?.baz?._optional
-         ).toEqual(true);
+         expect(s.oneOf?.[0]?.required).toEqual(["bar"]);
          // @ts-ignore
-         expect(s._schema.oneOf?.[0]?._schema.required).toEqual(["bar"]);
+         expect(s.oneOf?.[1]?.properties?.foo).toBeInstanceOf(Schema);
          // @ts-ignore
-         expect(s._schema.oneOf?.[1]?._schema.properties?.foo).toBeInstanceOf(
-            SchemaType
-         );
-         // @ts-ignore
-         expect(s._schema.oneOf?.[1]?._schema.required).toEqual(["foo"]);
+         expect(s.oneOf?.[1]?.required).toEqual(["foo"]);
       }
 
       {
@@ -198,11 +184,10 @@ describe("fromSchema", () => {
                },
             },
          }) as any;
-         expect(s._schema.properties?.alpha?._schema.type).toEqual("number");
-         expect(s._schema.properties?.alpha?._optional).toEqual(true);
-         expect(s._schema.properties?.alpha?._schema.default).toEqual(5);
+         expect(s.properties?.alpha?.type).toEqual("number");
+         expect(s.properties?.alpha?.default).toEqual(5);
          // @ts-ignore
-         expect(s._schema.properties?.alpha?._schema.maximum).toEqual(3);
+         expect(s.properties?.alpha?.maximum).toEqual(3);
       }
 
       {
@@ -220,9 +205,9 @@ describe("fromSchema", () => {
             anyOf: [{ multipleOf: 3 }],
             oneOf: [{ multipleOf: 5 }],
          }) as any;
-         expect(s._schema.allOf?.[0]?._schema.multipleOf).toEqual(2);
-         expect(s._schema.anyOf?.[0]?._schema.multipleOf).toEqual(3);
-         expect(s._schema.oneOf?.[0]?._schema.multipleOf).toEqual(5);
+         expect(s.allOf?.[0]?.multipleOf).toEqual(2);
+         expect(s.anyOf?.[0]?.multipleOf).toEqual(3);
+         expect(s.oneOf?.[0]?.multipleOf).toEqual(5);
       }
    });
 });

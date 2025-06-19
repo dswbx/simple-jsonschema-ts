@@ -1,9 +1,8 @@
-import type { SchemaType } from "../schema";
+import type { Schema } from "../schema/schema";
 import { InvalidTypeError } from "../errors";
 import {
    isArray,
    isBoolean,
-   isBooleanSchema,
    isInteger,
    isNull,
    isNumber,
@@ -83,18 +82,18 @@ export const _enum = (
    return valid();
 };
 
-export function matches<T extends SchemaType[]>(
+export function matches<T extends Schema[]>(
    schemas: T,
    value: unknown,
    opts: Opts = {}
-): SchemaType[] {
+): Schema[] {
    return schemas
       .map((s) => (s.validate(value, tmpOpts(opts)).valid ? s : undefined))
-      .filter(Boolean) as SchemaType[];
+      .filter(Boolean) as Schema[];
 }
 
 export const anyOf = (
-   { anyOf = [] }: { anyOf?: SchemaType[] },
+   { anyOf = [] }: { anyOf?: Schema[] },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -103,7 +102,7 @@ export const anyOf = (
 };
 
 export const oneOf = (
-   { oneOf = [] }: { oneOf?: SchemaType[] },
+   { oneOf = [] }: { oneOf?: Schema[] },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -112,7 +111,7 @@ export const oneOf = (
 };
 
 export const allOf = (
-   { allOf = [] }: { allOf?: SchemaType[] },
+   { allOf = [] }: { allOf?: Schema[] },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -121,7 +120,7 @@ export const allOf = (
 };
 
 export const not = (
-   { not }: { not?: SchemaType },
+   { not }: { not?: Schema },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -136,7 +135,7 @@ export const ifThenElse = (
       if: _if,
       then: _then,
       else: _else,
-   }: { if?: SchemaType; then?: SchemaType; else?: SchemaType },
+   }: { if?: Schema; then?: Schema; else?: Schema },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -296,7 +295,7 @@ export const exclusiveMinimum = (
  * Objects
  */
 export const properties = (
-   { properties = {} }: { properties?: Record<string, SchemaType> },
+   { properties = {} }: { properties?: Record<string, Schema> },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -320,9 +319,9 @@ export const additionalProperties = (
       additionalProperties,
       patternProperties,
    }: {
-      properties?: Record<string, SchemaType>;
-      additionalProperties?: SchemaType | false;
-      patternProperties?: Record<string, SchemaType>;
+      properties?: Record<string, Schema>;
+      additionalProperties?: Schema | false;
+      patternProperties?: Record<string, Schema>;
    },
    value: unknown,
    opts: Opts = {}
@@ -405,7 +404,7 @@ export const required = (
 };
 
 export const dependentSchemas = (
-   { dependentSchemas }: { dependentSchemas?: Record<string, SchemaType> },
+   { dependentSchemas }: { dependentSchemas?: Record<string, Schema> },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -455,9 +454,7 @@ export const maxProperties = (
 };
 
 export const patternProperties = (
-   {
-      patternProperties = {},
-   }: { patternProperties?: Record<string, SchemaType> },
+   { patternProperties = {} }: { patternProperties?: Record<string, Schema> },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -481,7 +478,7 @@ export const patternProperties = (
 };
 
 export const propertyNames = (
-   { propertyNames }: { propertyNames?: SchemaType },
+   { propertyNames }: { propertyNames?: Schema },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -503,10 +500,7 @@ export const propertyNames = (
  * Arrays
  */
 export const items = (
-   {
-      items,
-      prefixItems = [],
-   }: { items?: SchemaType; prefixItems?: SchemaType[] },
+   { items, prefixItems = [] }: { items?: Schema; prefixItems?: Schema[] },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -574,7 +568,7 @@ export const contains = (
       contains,
       minContains,
       maxContains,
-   }: { contains?: SchemaType; minContains?: number; maxContains?: number },
+   }: { contains?: Schema; minContains?: number; maxContains?: number },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -605,7 +599,7 @@ export const contains = (
 };
 
 export const prefixItems = (
-   { prefixItems = [] }: { prefixItems?: SchemaType[] },
+   { prefixItems = [] }: { prefixItems?: Schema[] },
    value: unknown,
    opts: Opts = {}
 ) => {

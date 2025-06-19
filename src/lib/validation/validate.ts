@@ -1,4 +1,4 @@
-import type { SchemaType } from "../schema";
+import type { Schema } from "../schema/schema";
 import type { ErrorDetail } from "../utils/details";
 import {
    _type,
@@ -95,7 +95,7 @@ export type ValidationResult = {
 };
 
 export function validate(
-   s: SchemaType,
+   s: Schema,
    _value: unknown,
    opts: ValidationOptions = {}
 ): ValidationResult {

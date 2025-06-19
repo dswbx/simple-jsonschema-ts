@@ -3,7 +3,7 @@
    "main": "dist/lib/index.js",
    "module": "dist/lib/index.js",
    "types": "dist/lib/index.d.ts",
-   "version": "0.1.0",
+   "version": "0.2.0-alpha.3",
    "sideEffects": false,
    "typesVersions": {
       "*": {
@@ -27,7 +27,8 @@
       "types": "tsc --noEmit",
       "test": "bun types && bun test:unit && bun test:spec",
       "test:spec": "clear && bun run src/test/spec/run.ts",
-      "build": "tsup",
+      "build": "rm -rf dist && tsup && bun run build:types",
+      "build:types": "tsc --emitDeclarationOnly",
       "benchmark": "bun run src/test/validation/benchmark.ts",
       "fetch": "npx giget gh:json-schema-org/JSON-Schema-Test-Suite/tests src/test/spec/lib",
       "prepublishOnly": "bun run build",
@@ -72,7 +73,6 @@
       ],
       "format": "esm",
       "platform": "neutral",
-      "dts": true,
       "metafile": true,
       "minify": true,
       "clean": true,

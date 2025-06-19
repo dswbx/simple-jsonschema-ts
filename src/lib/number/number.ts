@@ -1,8 +1,12 @@
-import { SchemaType, type TCustomType } from "../schema";
+import {
+   Schema,
+   createSchema,
+   type ISchemaOptions,
+   type StrictOptions,
+} from "../schema/schema";
 import { isString } from "../utils";
-import type { CoercionOptions } from "../validation/coerce";
 
-export interface NumberSchema extends TCustomType {
+export interface INumberOptions extends ISchemaOptions {
    multipleOf?: number;
    maximum?: number;
    exclusiveMaximum?: number;
@@ -10,36 +14,29 @@ export interface NumberSchema extends TCustomType {
    exclusiveMinimum?: number;
 }
 
-export class NumberType<const O extends NumberSchema> extends SchemaType<
-   O,
-   number
-> {
-   protected _template = 0;
-   type = "number";
-
-   override _coerce(value: unknown, opts?: CoercionOptions) {
-      if (isString(value)) {
-         const n = Number(value);
-         if (!Number.isNaN(n)) {
-            return n;
+const base = (
+   type: string,
+   overrides: { parseFn: (s: string) => number },
+   o?: INumberOptions
+) =>
+   createSchema(type, o, {
+      template: () => 0,
+      coerce: (value) => {
+         if (isString(value)) {
+            const n = overrides.parseFn(value);
+            if (!Number.isNaN(n)) {
+               return n;
+            }
          }
-      }
-      return value as number;
-   }
-}
+         return value as number;
+      },
+   });
 
-export const number = <const O extends NumberSchema>(config?: O) =>
-   new NumberType<O>(config);
+export const number = <const O extends INumberOptions>(
+   config?: StrictOptions<INumberOptions, O>
+): Schema<O, number> & O => base("number", { parseFn: Number }, config) as any;
 
-export class IntegerType<const O extends NumberSchema> extends NumberType<O> {
-   protected _template = 0;
-   type = "integer";
-
-   override _coerce(value: unknown, opts?: CoercionOptions) {
-      if (isString(value)) return Number.parseInt(value);
-      return super.coerce(value, opts);
-   }
-}
-
-export const integer = <const O extends NumberSchema>(config?: O) =>
-   new IntegerType<O>(config);
+export const integer = <const O extends INumberOptions>(
+   config?: StrictOptions<INumberOptions, O>
+): Schema<O, number> & O =>
+   base("integer", { parseFn: Number.parseInt }, config) as any;

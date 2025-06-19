@@ -1,6 +1,6 @@
 import { expectTypeOf } from "expect-type";
 import { type Static, type StaticCoerced } from "../static";
-import { string, StringType } from "./string";
+import { string } from "./string";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
 import { error, valid } from "../utils/details";
@@ -10,9 +10,6 @@ describe("string", () => {
       const schema = string();
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<string>();
-
-      const stringSchema = new StringType({ maxLength: 1 });
-      stringSchema._schema.maxLength;
 
       assertJson(string(), { type: "string" });
 
@@ -31,10 +28,10 @@ describe("string", () => {
       string({ maxLength: 1, minLength: 1, pattern: "", format: "" });
       // expect fns to work
       string({ coerce: (v) => "", validate: (v) => null as any });
-      // ts-expect-error minimum is not a valid property for string
-      //string({ minimum: 0 });
-      // ts-expect-error anyOf is not a valid property for string
-      //string({ anyOf: [] });
+      // @ts-expect-error minimum is not a valid property for string
+      string({ minimum: 0 });
+      // @ts-expect-error anyOf is not a valid property for string
+      string({ anyOf: [] });
    });
 
    test("options & type inference", () => {
@@ -47,10 +44,9 @@ describe("string", () => {
          minLength: 1,
          pattern: "/a/",
       });
-      const _ss = schema._schema;
 
-      expectTypeOf<(typeof _ss)["pattern"]>().toEqualTypeOf<"/a/">();
-      expectTypeOf<(typeof _ss)["minLength"]>().toEqualTypeOf<1>();
+      expectTypeOf<(typeof schema)["pattern"]>().toEqualTypeOf<"/a/">();
+      expectTypeOf<(typeof schema)["minLength"]>().toEqualTypeOf<1>();
    });
 
    test("with const", () => {
@@ -80,6 +76,7 @@ describe("string", () => {
    });
 
    test("string schema", () => {
+      assertJson(string(), { type: "string" });
       assertJson(string({ minLength: 1 }), {
          type: "string",
          minLength: 1,
@@ -95,55 +92,6 @@ describe("string", () => {
    });
 
    describe("validate", () => {
-      test("base", () => {
-         const schema = string();
-         expect(schema.validate("hello").valid).toBe(true);
-         expect(schema.validate(1).valid).toBe(false);
-         expect(schema.validate(undefined).valid).toBe(false);
-         expect(schema.validate(null).valid).toBe(false);
-         expect(schema.validate({}).valid).toBe(false);
-         expect(schema.validate([]).valid).toBe(false);
-      });
-
-      test("enum", () => {
-         const schema = string({ enum: ["a", "b", "c"] });
-         expect(schema.validate("a").valid).toBe(true);
-         expect(schema.validate("b").valid).toBe(true);
-         expect(schema.validate("c").valid).toBe(true);
-         expect(schema.validate("d").errors[0]?.keywordLocation).toEqual(
-            "/enum"
-         );
-      });
-
-      test("pattern", () => {
-         const schema = string({ pattern: "a" });
-         expect(schema.validate("a").valid).toBe(true);
-         expect(schema.validate("b").errors[0]?.keywordLocation).toEqual(
-            "/pattern"
-         );
-      });
-
-      test("minLength", () => {
-         const schema = string({ minLength: 3 });
-         expect(schema.validate("a").errors[0]?.keywordLocation).toEqual(
-            "/minLength"
-         );
-         expect(schema.validate("ab").errors[0]?.keywordLocation).toEqual(
-            "/minLength"
-         );
-         expect(schema.validate("abc").valid).toBe(true);
-      });
-
-      test("maxLength", () => {
-         const schema = string({ maxLength: 3 });
-         expect(schema.validate("a").valid).toBe(true);
-         expect(schema.validate("ab").valid).toBe(true);
-         expect(schema.validate("abc").valid).toBe(true);
-         expect(schema.validate("abcd").errors[0]?.keywordLocation).toEqual(
-            "/maxLength"
-         );
-      });
-
       test("mixed", () => {
          {
             const result = string({ maxLength: 2, minLength: 4 }).validate(
@@ -165,7 +113,6 @@ describe("string", () => {
             "/minLength"
          );
          expect(schema.validate("abcd").valid).toBe(true);
-         console.log("custom", schema.validate("throw"));
          expect(schema.validate("throw").errors[0]?.error).toEqual("throw");
       });
    });

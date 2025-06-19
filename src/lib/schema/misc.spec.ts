@@ -1,16 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { any, literal, LiteralType } from "./misc";
+import { any, literal } from "./misc";
 import { expectTypeOf } from "expect-type";
 import type { Static, StaticCoerced } from "../static";
 import { assertJson } from "../assert";
 import { object } from "../object/object";
-import type { TCustomType } from ".";
 import { string } from "../string/string";
 import { array } from "../array/array";
+import type { symbol } from "./schema";
 
 describe("any", () => {
    test("base", () => {
       const schema = any();
+      type Inferred2 = (typeof schema)[typeof symbol]["static"];
+      expectTypeOf<Inferred2>().toEqualTypeOf<any>();
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<any>();
       type Coerced = StaticCoerced<typeof schema>;
@@ -46,7 +48,8 @@ describe("any", () => {
 describe("literal", () => {
    test("base", () => {
       const schema = literal(1);
-      type W = (typeof schema)["static"];
+      type W = (typeof schema)[typeof symbol]["static"];
+      expectTypeOf<W>().toEqualTypeOf<1>();
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<1>();
       type Coerced = StaticCoerced<typeof schema>;
@@ -74,20 +77,12 @@ describe("literal", () => {
    });
 
    test("with props", () => {
-      // ts-expect-error const should not be reused
-      //literal(1, { const: 1 });
+      // @ts-expect-error const should not be reused
+      literal(1, { const: 1 });
 
       const schema = literal(1, {
          title: "number",
       });
-      type Props<T> = T extends LiteralType<
-         infer A,
-         infer P extends TCustomType
-      >
-         ? P
-         : never;
-      type SchemaProps = Props<typeof schema>;
-      expectTypeOf<SchemaProps>().toEqualTypeOf<{ readonly title: "number" }>();
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<1>();
       type Coerced = StaticCoerced<typeof schema>;

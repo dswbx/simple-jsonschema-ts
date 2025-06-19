@@ -1,4 +1,4 @@
-import type { SchemaType } from "./schema";
+import type { Schema, symbol } from "./schema";
 
 // from https://github.com/type-challenges/type-challenges/issues/28200
 export type Merge<T> = {
@@ -24,17 +24,18 @@ export type Simplify<T> = { [KeyType in keyof T]: T[KeyType] } & {};
 
 export type OptionallyOptional<T, C> = T extends undefined ? C | undefined : C;
 
-export type Static<S extends SchemaType> = S["static"] extends {
+export type Static<S extends Schema> = S[typeof symbol]["static"] extends {
    [key: string]: any;
 }
-   ? Simplify<S["static"]>
-   : S["static"];
+   ? Simplify<S[typeof symbol]["static"]>
+   : S[typeof symbol]["static"];
 
-export type StaticCoerced<S extends SchemaType> = S["coerced"] extends {
-   [key: string]: any;
-}
-   ? Simplify<S["coerced"]>
-   : S["coerced"];
+export type StaticCoerced<S extends Schema> =
+   S[typeof symbol]["coerced"] extends {
+      [key: string]: any;
+   }
+      ? Simplify<S[typeof symbol]["coerced"]>
+      : S[typeof symbol]["coerced"];
 
 export type StaticConstEnum<Schema, Fallback = unknown> = Schema extends {
    const: infer C;

@@ -1,6 +1,6 @@
 import { expectTypeOf } from "expect-type";
 import { type Static } from "../static";
-import { boolean, BooleanType } from "./boolean";
+import { boolean } from "./boolean";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
 
@@ -10,14 +10,7 @@ describe("number", () => {
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<boolean>();
 
-      expect(boolean()).toBeInstanceOf(BooleanType);
       assertJson(boolean(), { type: "boolean" });
-
-      {
-         // type
-         type T = Static<BooleanType<{}>>;
-         expectTypeOf<T>().toEqualTypeOf<boolean>();
-      }
 
       {
          // optional

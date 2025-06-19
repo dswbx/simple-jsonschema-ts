@@ -1,18 +1,18 @@
-import { SchemaType, type TCustomType } from "./schema";
+import {
+   createSchema,
+   Schema,
+   type ISchemaOptions,
+   type StrictOptions,
+} from "./schema";
+import type { Merge } from "../static";
 
-export class AnyType<const O extends TCustomType> extends SchemaType<
-   O,
-   any,
-   any
-> {
-   constructor(options: O) {
-      super(options);
-      // @ts-ignore
-      this.type = options.type;
-   }
+export interface IAnyOptions extends ISchemaOptions {
+   [key: string]: any;
 }
-export const any = <const O extends TCustomType>(options: O = {} as O) =>
-   new AnyType(options);
+
+export const any = <const O extends IAnyOptions>(
+   o?: O
+): Schema<O, any, any> & O => createSchema(o?.type, o) as any;
 
 type Primitive = string | number | boolean | null | undefined | bigint;
 
@@ -24,16 +24,14 @@ type TLiteralType<T, Excluded extends object> = T extends Primitive
       : T
    : never;
 
-export class LiteralType<
-   const L,
-   const O extends Omit<TCustomType, "const">
-> extends SchemaType<O, L, L> {}
+export interface ILiteralOptions
+   extends Omit<ISchemaOptions, "const" | "enum"> {}
 
-export const literal = <const L, const O extends Omit<TCustomType, "const">>(
-   value: TLiteralType<L, SchemaType>,
-   options: O = {} as O
-) =>
-   new LiteralType<L, O>({
-      ...options,
+export const literal = <const L, const O extends ILiteralOptions>(
+   value: TLiteralType<L, Schema>,
+   o?: StrictOptions<ILiteralOptions, O>
+): Schema<Merge<O & { const: L }>, L, L> & O =>
+   createSchema(undefined as any, {
+      ...o,
       const: value,
-   });
+   }) as any;

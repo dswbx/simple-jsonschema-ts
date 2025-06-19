@@ -1,6 +1,8 @@
 import { describe, test, expect } from "bun:test";
 import { expectTypeOf } from "expect-type";
-import { number, object, string } from "../";
+import { number } from "../number/number";
+import { object } from "../object/object";
+import { string } from "../string/string";
 import { assertJson } from "../assert";
 import type { Static } from "../static";
 import { allOf } from "./all-of";

@@ -1,9 +1,9 @@
-import { type TCustomType, SchemaType } from "../schema";
+import { Schema, type ISchemaOptions } from "../schema/schema";
 import { type Static, type StaticCoerced } from "../static";
 import type { CoercionOptions } from "../validation/coerce";
 import { isSchema } from "../utils";
 
-export interface TRefType extends SchemaType<{ $id: string }> {}
+export type TRefType = Schema & { $id: string };
 
 export class RefType<
    const T extends TRefType | unknown | undefined,
@@ -11,27 +11,34 @@ export class RefType<
    Out = T extends TRefType ? Static<T> : T,
    Coerced = T extends TRefType ? StaticCoerced<T> : T
    // @todo: should be "O"
-> extends SchemaType<TCustomType, Out, Coerced> {
-   constructor(readonly ref: T, readonly $ref: Ref) {
+> extends Schema<ISchemaOptions, Out, Coerced> {
+   $ref: Ref;
+
+   constructor(ref: T, $ref: Ref) {
       if (!$ref && !isSchema(ref)) {
          throw new Error("Ref not set");
-      } else if (isSchema(ref) && !ref._schema?.$id) {
+      } else if (isSchema(ref) && !ref.$id) {
          throw new Error("Ref must have an $id");
       }
 
-      super({
-         // @ts-ignore
-         $ref: $ref ?? ref?._schema.$id,
-      });
-      this.ref = ref;
-   }
+      // @ts-expect-error
+      const _ref = $ref ?? ref?.$id;
 
-   override _coerce(value: unknown, opts?: CoercionOptions): Coerced {
-      const ref = this.ref ?? opts?.resolver?.resolve(this.$ref!);
-      if (!isSchema(ref)) {
-         throw new Error(`Ref not found: ${this.$ref}`);
-      }
-      return ref.coerce(value, opts) as any;
+      super(
+         {
+            $ref: _ref,
+         },
+         {
+            coerce: (value: unknown, opts?: CoercionOptions) => {
+               const ref = opts?.resolver?.resolve(this.$ref!);
+               if (!isSchema(ref)) {
+                  throw new Error(`Ref not found: ${this.$ref}`);
+               }
+               return ref.coerce(value, opts);
+            },
+         }
+      );
+      this.$ref = _ref;
    }
 }
 
@@ -49,18 +56,18 @@ export const refId = <T = unknown, const Ref extends string = string>(
 };
 
 // @todo: only # refs supported for now
-export const recursive = <const T extends SchemaType>(
-   cb: (thisSchema: SchemaType) => T
+export const recursive = <const T extends Schema>(
+   cb: (thisSchema: Schema) => T
 ) => {
    return cb(
-      new SchemaType({
+      new Schema({
          $ref: "#",
          coerce: (value: unknown, opts?: CoercionOptions) => {
             const ref = opts?.resolver?.resolve("#");
             if (!isSchema(ref)) {
                throw new Error(`Ref not found: #`);
             }
-            return ref.coerce(value, opts) as any;
+            return ref.coerce(value, opts);
          },
       })
    ) as T;

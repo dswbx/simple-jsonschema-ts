@@ -33,7 +33,9 @@ describe("number", () => {
       });
       // expect fns to work
       number({ coerce: (v) => 0, validate: (v) => null as any });
+      // @ts-expect-error maxLength is not a valid property for number
       number({ maxLength: 0 });
+      // @ts-expect-error pattern is not a valid property for number
       number({ pattern: "" });
    });
 
@@ -48,11 +50,10 @@ describe("number", () => {
          maximum: 1,
          multipleOf: 1,
       });
-      const _s = schema._schema;
 
-      expectTypeOf<(typeof _s)["minimum"]>().toEqualTypeOf<1>();
-      expectTypeOf<(typeof _s)["maximum"]>().toEqualTypeOf<1>();
-      expectTypeOf<(typeof _s)["multipleOf"]>().toEqualTypeOf<1>();
+      expectTypeOf<(typeof schema)["minimum"]>().toEqualTypeOf<1>();
+      expectTypeOf<(typeof schema)["maximum"]>().toEqualTypeOf<1>();
+      expectTypeOf<(typeof schema)["multipleOf"]>().toEqualTypeOf<1>();
    });
 
    test("with const", () => {
@@ -190,7 +191,6 @@ describe("number", () => {
    test("coerce", () => {
       expect(number().coerce("1")).toEqual(1);
       expect(number().coerce(1)).toEqual(1);
-      // @ts-expect-error
       expect(number().coerce(true)).toEqual(true);
 
       // custom coersion

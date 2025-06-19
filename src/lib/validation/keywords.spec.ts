@@ -3,9 +3,9 @@ import * as kw from "./keywords";
 import { number } from "../number/number";
 import { boolean } from "../boolean/boolean";
 import { string } from "../string/string";
-import { SchemaType } from "../schema";
 import { any } from "../schema/misc";
 import { fromSchema } from "../schema/from-schema";
+import { booleanSchema } from "../schema";
 
 describe("keywords", () => {
    describe("base", () => {
@@ -274,7 +274,7 @@ describe("keywords", () => {
          expect(
             kw.propertyNames(
                {
-                  propertyNames: SchemaType.false(),
+                  propertyNames: booleanSchema(false),
                },
                { foo: 1 }
             ).valid
@@ -371,7 +371,7 @@ describe("keywords", () => {
          {
             // prefixItems with items false
             const s = any({
-               items: SchemaType.false(),
+               items: booleanSchema(false),
                prefixItems: [boolean(), boolean()],
             });
             expect(s.validate([true, false]).valid).toBe(true);

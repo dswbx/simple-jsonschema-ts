@@ -1,34 +1,23 @@
-import { SchemaType, type TCustomType } from "../schema/schema";
+import {
+   Schema,
+   type ISchemaOptions,
+   type StrictOptions,
+   createSchema,
+} from "../schema";
 import type { Static, StaticCoerced } from "../static";
 
-export interface RecordSchema extends TCustomType {
+export interface IRecordOptions extends ISchemaOptions {
    additionalProperties: never;
 }
 
-type RecordStatic<AP extends SchemaType> = Record<string, Static<AP>>;
-type RecordCoerced<AP extends SchemaType> = Record<string, StaticCoerced<AP>>;
+type RecordStatic<AP extends Schema> = Record<string, Static<AP>>;
+type RecordCoerced<AP extends Schema> = Record<string, StaticCoerced<AP>>;
 
-export class RecordType<
-   const AP extends SchemaType,
-   const O extends RecordSchema
-> extends SchemaType<O, RecordStatic<AP>, RecordCoerced<AP>> {
-   readonly type = "object";
-   readonly additionalProperties: AP;
-   protected _template = {} as any;
-
-   constructor(additionalProperties: AP, options: O = {} as O) {
-      super({
-         ...options,
-         additionalProperties,
-      });
-      this.additionalProperties = additionalProperties;
-   }
-}
-
-export const record = <
-   const AP extends SchemaType,
-   const O extends RecordSchema
->(
+export const record = <const AP extends Schema, const O extends IRecordOptions>(
    ap: AP,
-   options: O = {} as O
-) => new RecordType(ap, options);
+   options?: StrictOptions<IRecordOptions, O>
+): Schema<O, RecordStatic<AP>, RecordCoerced<AP>> & O =>
+   createSchema("object", {
+      ...options,
+      additionalProperties: ap,
+   }) as any;

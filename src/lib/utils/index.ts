@@ -1,10 +1,6 @@
-import { SchemaType } from "../schema";
 import { InvariantError } from "../errors";
-import type {
-   BaseJSONSchema,
-   PropertyName,
-   JSONSchemaDefinition,
-} from "../types";
+import type { PropertyName, JSONSchemaDefinition } from "../types";
+import { Schema, type ISchemaOptions } from "../schema/schema";
 
 export function isNull(value: unknown): value is null {
    return value === null;
@@ -48,17 +44,19 @@ export function isNonBooleanRawSchema(
    return typeof schema !== "boolean";
 }
 
-export function isTypeSchema(schema: unknown): schema is BaseJSONSchema {
+export function isTypeSchema(
+   schema: unknown
+): schema is { type: string | string[] } {
    return (
       schema !== undefined && isNonBooleanRawSchema(schema) && "type" in schema
    );
 }
 
-export function isSchema(schema: unknown): schema is SchemaType {
-   return schema instanceof SchemaType;
+export function isSchema(schema: unknown): schema is Schema & ISchemaOptions {
+   return schema instanceof Schema;
 }
 
-export function isBooleanSchema(schema: unknown): schema is SchemaType {
+export function isBooleanSchema(schema: unknown): schema is Schema {
    return isSchema(schema) && typeof schema.toJSON() === "boolean";
 }
 

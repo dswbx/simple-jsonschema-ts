@@ -1,22 +1,19 @@
-import type { SchemaType } from "../schema";
+import type { Schema } from "../schema/schema";
 import { getJsonPath } from "../utils/path";
 import { isSchema, isString } from "../utils";
 
 export class Resolver {
-   private cache: Map<string, SchemaType>;
+   private cache: Map<string, Schema>;
 
-   constructor(readonly root: SchemaType) {
-      this.cache = new Map<string, SchemaType>();
+   constructor(readonly root: Schema) {
+      this.cache = new Map<string, Schema>();
    }
 
-   hasRef<S extends SchemaType>(
-      s: S,
-      value: unknown
-   ): s is S & { $ref: string } {
+   hasRef<S extends Schema>(s: S, value: unknown): s is S & { $ref: string } {
       return value !== undefined && "$ref" in s && isString(s.$ref);
    }
 
-   resolve(ref: string): SchemaType {
+   resolve(ref: string): Schema {
       let refSchema = this.cache.get(ref);
       if (!refSchema) {
          refSchema = getJsonPath(this.root, ref);

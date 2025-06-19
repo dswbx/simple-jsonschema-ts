@@ -3,7 +3,9 @@ import type { Static, StaticCoerced } from "../static";
 import { array } from "./array";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
-import { string, number, object, any } from "../";
+import { object } from "../object/object";
+import { string } from "../string/string";
+import { number } from "../number/number";
 
 describe("array", () => {
    test("basic with string", () => {

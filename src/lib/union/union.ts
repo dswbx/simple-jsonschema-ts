@@ -1,98 +1,88 @@
-import { type TCustomType, SchemaType } from "../schema";
+import {
+   createSchema,
+   Schema,
+   type ISchemaOptions,
+   type StrictOptions,
+} from "../schema/schema";
 import type { Static, StaticCoerced } from "../static";
-import type { CoercionOptions } from "../validation/coerce";
 import { matches } from "../validation/keywords";
 
-export type StaticUnion<T extends SchemaType[]> = T extends [
-   infer U,
-   ...infer Rest
-]
-   ? U extends SchemaType
-      ? Rest extends SchemaType[]
+export type StaticUnion<T extends Schema[]> = T extends [infer U, ...infer Rest]
+   ? U extends Schema
+      ? Rest extends Schema[]
          ? StaticUnion<Rest> | Static<U>
          : Static<U>
       : never
    : never;
 
-export type StaticUnionCoerced<T extends SchemaType[]> = T extends [
+export type StaticUnionCoerced<T extends Schema[]> = T extends [
    infer U,
    ...infer Rest
 ]
-   ? U extends SchemaType
-      ? Rest extends SchemaType[]
+   ? U extends Schema
+      ? Rest extends Schema[]
          ? StaticUnionCoerced<Rest> | StaticCoerced<U>
          : StaticCoerced<U>
       : never
    : never;
 
-export interface UnionSchema extends TCustomType {}
+export type StaticUnionCoercedOptions<
+   O extends ISchemaOptions,
+   T extends Schema[]
+> = O extends {
+   coerce: (...args: any[]) => infer C;
+}
+   ? C
+   : T extends [infer U, ...infer Rest]
+   ? U extends Schema
+      ? Rest extends Schema[]
+         ? StaticUnionCoerced<Rest> | StaticCoerced<U>
+         : StaticCoerced<U>
+      : never
+   : never;
 
-export abstract class UnionType<
-   const T extends SchemaType[],
-   const O extends UnionSchema
-> extends SchemaType<O, StaticUnion<T>, StaticUnionCoerced<T>> {
-   readonly schemas: T;
+export interface IUnionOptions extends ISchemaOptions {}
 
-   constructor(type: "oneOf" | "anyOf", schemas: T, options: O = {} as O) {
-      super({
+const union = (
+   type: "oneOf" | "anyOf",
+   schemas: Schema[],
+   options?: IUnionOptions
+) =>
+   createSchema(
+      undefined as any,
+      {
          ...options,
          [type]: schemas,
-      });
-      this.schemas = schemas;
-   }
+      },
+      {
+         coerce: (value, opts) => {
+            const customCoerce = options?.coerce;
+            if (customCoerce !== undefined) {
+               return customCoerce.bind(this)(value, opts);
+            }
 
-   override _coerce(value: unknown, opts: CoercionOptions = {}): any {
-      if ("coerce" in this._schema && this._schema.coerce !== undefined) {
-         return this._schema.coerce.bind(this)(value, opts);
+            const m = matches(schemas, value, {
+               ignoreUnsupported: true,
+               resolver: opts?.resolver,
+               coerce: true,
+            });
+
+            if (m.length > 0) {
+               return m[0]!.coerce(value, opts);
+            }
+            return value;
+         },
       }
+   );
 
-      const m = matches(this.schemas, value, {
-         ignoreUnsupported: true,
-         resolver: opts.resolver,
-         coerce: true,
-      });
-
-      if (m.length > 0) {
-         return m[0]!.coerce(value, opts);
-      }
-      return value;
-   }
-}
-
-export interface AnyOfSchema extends TCustomType {}
-
-export class AnyOfType<
-   const T extends SchemaType[],
-   const O extends AnyOfSchema
-> extends UnionType<T, O> {
-   constructor(schemas: T, options: O = {} as O) {
-      super("anyOf", schemas, options);
-   }
-}
-
-export const anyOf = <
-   const T extends SchemaType[],
-   const O extends AnyOfSchema
->(
+export const anyOf = <const T extends Schema[], const O extends IUnionOptions>(
    schemas: T,
-   options: O = {} as O
-) => new AnyOfType(schemas, options);
+   options?: StrictOptions<IUnionOptions, O>
+): Schema<O, StaticUnion<T>, StaticUnionCoercedOptions<O, T>> & O =>
+   union("anyOf", schemas, options) as any;
 
-export interface OneOfSchema extends TCustomType {}
-
-export class OneOfType<
-   const T extends SchemaType[],
-   const O extends OneOfSchema
-> extends UnionType<T, O> {
-   constructor(schemas: T, options: O = {} as O) {
-      super("oneOf", schemas, options);
-   }
-}
-
-export const oneOf = <
-   const T extends SchemaType[],
-   const O extends OneOfSchema
->(
+export const oneOf = <const T extends Schema[], const O extends IUnionOptions>(
    schemas: T,
-   options: O = {} as O
-) => new OneOfType(schemas, options);
+   options?: StrictOptions<IUnionOptions, O>
+): Schema<O, StaticUnion<T>, StaticUnionCoercedOptions<O, T>> & O =>
+   union("oneOf", schemas, options) as any;
