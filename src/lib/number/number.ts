@@ -1,7 +1,12 @@
-import { schema, type TCustomSchema, type TCustomType } from "../schema";
+import {
+   Schema,
+   createSchema,
+   type ISchemaOptions,
+   type StrictOptions,
+} from "../schema/schema";
 import { isString } from "../utils";
 
-export interface NumberSchema extends TCustomType {
+export interface INumberOptions extends ISchemaOptions {
    multipleOf?: number;
    maximum?: number;
    exclusiveMaximum?: number;
@@ -9,51 +14,29 @@ export interface NumberSchema extends TCustomType {
    exclusiveMinimum?: number;
 }
 
-export type TNumber<O extends NumberSchema> = TCustomSchema<O, number>;
-
-export const number = <const S extends NumberSchema>(
-   options: S = {} as S
-): TNumber<S> =>
-   schema(
-      {
-         coerce: (value: unknown) => {
-            if (isString(value)) return Number(value);
-            return value;
-         },
-         template,
-         ...options,
-         type: "number",
-      },
-      "number"
-   ) as any;
-
-export const integer = <const S extends NumberSchema>(
-   options: S = {} as S
-): TNumber<S> =>
-   schema(
-      {
-         coerce: (value: unknown) => {
-            if (isString(value)) return Number.parseInt(value);
-            return value;
-         },
-         template,
-         ...options,
-         type: "integer",
-      },
-      "integer"
-   ) as any;
-
-function template(this: NumberSchema) {
-   if (this.minimum) return this.minimum;
-   if (this.exclusiveMinimum) {
-      if (this.multipleOf) {
-         let result = this.exclusiveMinimum;
-         while (result % this.multipleOf !== 0) {
-            result++;
+const base = (
+   type: string,
+   overrides: { parseFn: (s: string) => number },
+   o?: INumberOptions
+) =>
+   createSchema(type, o, {
+      template: () => 0,
+      coerce: (value) => {
+         if (isString(value)) {
+            const n = overrides.parseFn(value);
+            if (!Number.isNaN(n)) {
+               return n;
+            }
          }
-         return result;
-      }
-      return this.exclusiveMinimum + 1;
-   }
-   return 0;
-}
+         return value as number;
+      },
+   });
+
+export const number = <const O extends INumberOptions>(
+   config?: StrictOptions<INumberOptions, O>
+): Schema<O, number> & O => base("number", { parseFn: Number }, config) as any;
+
+export const integer = <const O extends INumberOptions>(
+   config?: StrictOptions<INumberOptions, O>
+): Schema<O, number> & O =>
+   base("integer", { parseFn: Number.parseInt }, config) as any;

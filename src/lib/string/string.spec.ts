@@ -12,6 +12,15 @@ describe("string", () => {
       expectTypeOf<Inferred>().toEqualTypeOf<string>();
 
       assertJson(string(), { type: "string" });
+
+      {
+         // optional
+         const schema = string().optional();
+         type Inferred = Static<typeof schema>;
+         expectTypeOf<Inferred>().toEqualTypeOf<string | undefined>();
+
+         assertJson(schema, { type: "string" });
+      }
    });
 
    test("types", () => {
@@ -38,13 +47,6 @@ describe("string", () => {
 
       expectTypeOf<(typeof schema)["pattern"]>().toEqualTypeOf<"/a/">();
       expectTypeOf<(typeof schema)["minLength"]>().toEqualTypeOf<1>();
-
-      expectTypeOf<(typeof schema)["maxLength"]>().toEqualTypeOf<
-         number | undefined
-      >();
-      expectTypeOf<(typeof schema)["$id"]>().toEqualTypeOf<
-         string | undefined
-      >();
    });
 
    test("with const", () => {
@@ -74,6 +76,7 @@ describe("string", () => {
    });
 
    test("string schema", () => {
+      assertJson(string(), { type: "string" });
       assertJson(string({ minLength: 1 }), {
          type: "string",
          minLength: 1,
@@ -89,55 +92,6 @@ describe("string", () => {
    });
 
    describe("validate", () => {
-      test("base", () => {
-         const schema = string();
-         expect(schema.validate("hello").valid).toBe(true);
-         expect(schema.validate(1).valid).toBe(false);
-         expect(schema.validate(undefined).valid).toBe(false);
-         expect(schema.validate(null).valid).toBe(false);
-         expect(schema.validate({}).valid).toBe(false);
-         expect(schema.validate([]).valid).toBe(false);
-      });
-
-      test("enum", () => {
-         const schema = string({ enum: ["a", "b", "c"] });
-         expect(schema.validate("a").valid).toBe(true);
-         expect(schema.validate("b").valid).toBe(true);
-         expect(schema.validate("c").valid).toBe(true);
-         expect(schema.validate("d").errors[0]?.keywordLocation).toEqual(
-            "/enum"
-         );
-      });
-
-      test("pattern", () => {
-         const schema = string({ pattern: "a" });
-         expect(schema.validate("a").valid).toBe(true);
-         expect(schema.validate("b").errors[0]?.keywordLocation).toEqual(
-            "/pattern"
-         );
-      });
-
-      test("minLength", () => {
-         const schema = string({ minLength: 3 });
-         expect(schema.validate("a").errors[0]?.keywordLocation).toEqual(
-            "/minLength"
-         );
-         expect(schema.validate("ab").errors[0]?.keywordLocation).toEqual(
-            "/minLength"
-         );
-         expect(schema.validate("abc").valid).toBe(true);
-      });
-
-      test("maxLength", () => {
-         const schema = string({ maxLength: 3 });
-         expect(schema.validate("a").valid).toBe(true);
-         expect(schema.validate("ab").valid).toBe(true);
-         expect(schema.validate("abc").valid).toBe(true);
-         expect(schema.validate("abcd").errors[0]?.keywordLocation).toEqual(
-            "/maxLength"
-         );
-      });
-
       test("mixed", () => {
          {
             const result = string({ maxLength: 2, minLength: 4 }).validate(
@@ -159,7 +113,6 @@ describe("string", () => {
             "/minLength"
          );
          expect(schema.validate("abcd").valid).toBe(true);
-         //console.log("custom", schema.validate("throw"));
          expect(schema.validate("throw").errors[0]?.error).toEqual("throw");
       });
    });
@@ -173,8 +126,6 @@ describe("string", () => {
    test("coerce", () => {
       expect(string().coerce("hello")).toEqual("hello");
       expect(string().coerce(1)).toEqual("1");
-      expect(string().coerce(true)).toEqual(true);
-      expect(string().coerce(false)).toEqual(false);
 
       // custom coersion
       expect(

@@ -1,18 +1,20 @@
 import { expectTypeOf } from "expect-type";
 import type { Static, StaticCoerced } from "../static";
-import { $kind } from "../symbols";
-import { allOf, anyOf, oneOf } from "./union";
+import { anyOf, oneOf } from "./union";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
-import { string, number, object, array, any, integer, literal } from "../";
+import { string } from "../string/string";
+import { number, integer } from "../number/number";
+import { object } from "../object/object";
+import { array } from "../array/array";
+import { any, literal } from "../schema/misc";
+import type { symbol } from "../schema/schema";
 
 describe("union", () => {
    test("anyOf", () => {
       const schema = anyOf([string(), number()]);
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<string | number>();
-
-      expect<any>(schema[$kind]).toEqual("anyOf");
 
       assertJson(schema, {
          anyOf: [{ type: "string" }, { type: "number" }],
@@ -38,13 +40,13 @@ describe("union", () => {
          type: string({ const: "ref/resource" }),
          uri: string().optional(),
       });
-      type OneStatic = (typeof one)["static"];
+      type OneStatic = (typeof one)[typeof symbol]["static"];
       //   ^?
       type OneInferred = Static<typeof one>;
       //   ^?
 
       const aobj = array(object({ name: string() }));
-      type AobjStatic = (typeof aobj)["static"];
+      type AobjStatic = (typeof aobj)[typeof symbol]["static"];
       //   ^?
       type AobjInferred = Static<typeof aobj>;
       //   ^?
@@ -56,7 +58,7 @@ describe("union", () => {
             name: string(),
          }),
       ]);
-      type AnyOfStatic = (typeof schema)["static"];
+      type AnyOfStatic = (typeof schema)[typeof symbol]["static"];
       //   ^?
       expectTypeOf<AnyOfStatic>().toEqualTypeOf<
          | {
@@ -124,58 +126,12 @@ describe("union", () => {
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<string | number>();
 
-      expect<any>(schema[$kind]).toEqual("oneOf");
-
       assertJson(schema, {
          oneOf: [{ type: "string" }, { type: "number" }],
       });
    });
 
    // use with caution!
-   test("allOf", () => {
-      const schema = allOf([
-         object({ test: string() }),
-         object({ what: string() }),
-      ]);
-      type Inferred = Static<typeof schema>;
-      expectTypeOf<Inferred>().toEqualTypeOf<{
-         test: string;
-         what: string;
-         [key: string]: unknown;
-      }>();
-
-      //console.log(JSON.stringify(schema, null, 2));
-      assertJson(schema, {
-         type: "object",
-         required: ["test", "what"],
-         properties: {
-            test: {
-               type: "string",
-            },
-            what: {
-               type: "string",
-            },
-         },
-      });
-   });
-
-   test("allOf complex", () => {
-      const schema = allOf([
-         object({
-            bar: number(),
-         }),
-         object({
-            foo: string(),
-         }),
-      ]);
-      //console.log(schema);
-      type Inferred = Static<typeof schema>;
-      expectTypeOf<Inferred>().toEqualTypeOf<{
-         bar: number;
-         foo: string;
-         [key: string]: unknown;
-      }>();
-   });
 
    test("template", () => {
       const schema = anyOf([string(), number()], { default: 1 });
@@ -202,8 +158,12 @@ describe("union", () => {
             return [String(value)];
          },
       });
-      type Inferred = StaticCoerced<typeof schema>;
-      expectTypeOf<Inferred>().toEqualTypeOf<string[]>();
+      type Inferred = Static<typeof schema>;
+      expectTypeOf<Inferred>().toEqualTypeOf<string | string[]>();
+      type Coerced = (typeof schema)[typeof symbol]["coerced"];
+      expectTypeOf<Coerced>().toEqualTypeOf<string[]>();
+      type Coerced2 = StaticCoerced<typeof schema>;
+      expectTypeOf<Coerced2>().toEqualTypeOf<string[]>();
 
       expect(schema.coerce("test")).toEqual(["test"]);
       expect(schema.coerce("test,test2")).toEqual(["test", "test2"]);

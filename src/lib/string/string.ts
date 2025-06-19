@@ -1,29 +1,25 @@
-import { schema, type TCustomSchema, type TCustomType } from "../schema";
-import type { Merge, Simplify } from "../static";
+import {
+   createSchema,
+   Schema,
+   type ISchemaOptions,
+   type StrictOptions,
+} from "../schema/schema";
 import { isNumber } from "../utils";
 
-export interface StringSchema extends TCustomType {
+export interface IStringOptions extends ISchemaOptions {
    maxLength?: number;
    minLength?: number;
    pattern?: string;
    format?: string;
 }
 
-export type TString<O extends StringSchema> = TCustomSchema<O, string>;
-
-export const string = <const S extends StringSchema = StringSchema>(
-   config: S = {} as S
-): TString<S> =>
-   schema(
-      {
-         template: () => "",
-         coerce: (value: unknown) => {
-            // only coerce numbers to strings
-            if (isNumber(value)) return String(value);
-            return value;
-         },
-         ...config,
-         type: "string",
+export const string = <const O extends IStringOptions>(
+   o?: StrictOptions<IStringOptions, O>
+): Schema<O, string> & O =>
+   createSchema("string", o, {
+      template: () => "",
+      coerce: (value) => {
+         if (isNumber(value)) return String(value);
+         return value as string;
       },
-      "string"
-   ) as any;
+   }) as any;

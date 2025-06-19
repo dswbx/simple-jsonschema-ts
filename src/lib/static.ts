@@ -1,4 +1,4 @@
-import type { TAnySchema, TSchema } from "./schema";
+import type { Schema, symbol } from "./schema";
 
 // from https://github.com/type-challenges/type-challenges/issues/28200
 export type Merge<T> = {
@@ -22,24 +22,24 @@ export type OptionalUndefined<
 // https://github.com/sindresorhus/type-fest/blob/main/source/simplify.d.ts
 export type Simplify<T> = { [KeyType in keyof T]: T[KeyType] } & {};
 
-export type Static<S extends TAnySchema> = S["static"] extends {
+export type OptionallyOptional<T, C> = T extends undefined ? C | undefined : C;
+
+export type Static<S extends Schema> = S[typeof symbol]["static"] extends {
    [key: string]: any;
 }
-   ? Simplify<S["static"]>
-   : S["static"];
+   ? Simplify<S[typeof symbol]["static"]>
+   : S[typeof symbol]["static"];
 
-export type StaticCoerced<S extends TAnySchema> = S["coerce"] extends (
-   v: unknown
-) => infer R
-   ? R extends { [key: string]: unknown }
-      ? Simplify<OptionalUndefined<R>>
-      : R
-   : never;
+export type StaticCoerced<S extends Schema> =
+   S[typeof symbol]["coerced"] extends {
+      [key: string]: any;
+   }
+      ? Simplify<S[typeof symbol]["coerced"]>
+      : S[typeof symbol]["coerced"];
 
-export type StaticConstEnum<
-   Schema extends { const?: unknown; enum?: unknown },
-   Fallback = unknown
-> = Schema extends { const: infer C }
+export type StaticConstEnum<Schema, Fallback = unknown> = Schema extends {
+   const: infer C;
+}
    ? C
    : Schema extends { enum: infer E }
    ? E extends readonly any[]

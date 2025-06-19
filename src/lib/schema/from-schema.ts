@@ -1,8 +1,7 @@
 import * as lib from "..";
-import * as unionFns from "../union/union";
-import { isObject, isTypeSchema, isArray, isBoolean, isSchema } from "../utils";
 import { InvalidRawSchemaError } from "../errors";
-import { mergeAllOf } from "../utils/merge-allof";
+import type { JSONSchema } from "../types";
+import { isArray, isBoolean, isObject, isTypeSchema } from "../utils";
 
 function eachArray<T>(array: any | any[], fn: (item: any) => T): T[] {
    return Array.isArray(array)
@@ -22,9 +21,12 @@ function eachObject<T>(
    ) as Record<string, T>;
 }
 
-export function fromSchema<Type = unknown>(_schema: any): lib.TSchema<Type> {
+export type AnySchema<Type = unknown> = lib.Schema<any, Type> &
+   JSONSchema<lib.Schema>;
+
+export function fromSchema<Type = unknown>(_schema: any): AnySchema<Type> {
    if (isBoolean(_schema)) {
-      return lib.schema(Boolean(_schema)) as any;
+      return lib.booleanSchema(_schema) as any;
    }
 
    const schema = structuredClone(_schema);
@@ -113,5 +115,5 @@ export function fromSchema<Type = unknown>(_schema: any): lib.TSchema<Type> {
    }
 
    //console.log("--fallback", { schema });
-   return lib.schema(schema as any);
+   return lib.any(schema as any);
 }

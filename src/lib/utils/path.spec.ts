@@ -1,6 +1,7 @@
 import { test, describe, expect } from "bun:test";
 import { fromJsonPointer, getJsonPath, getPath } from "./path";
 import { toJsonPointer } from "./path";
+import { number, object } from "..";
 
 describe("path", () => {
    test("toJsonPointer", () => {
@@ -23,6 +24,20 @@ describe("path", () => {
    test("getPath", () => {
       expect(getPath({ a: { b: { c: 1 } } }, "a.b.c")).toBe(1);
       expect(getPath({ a: { b: { c: 1 } } }, "a.b.d")).toBe(undefined);
+
+      /* console.log(
+         "..",
+         getPath(
+            object({
+               a: object({
+                  b: object({
+                     c: number(),
+                  }),
+               }),
+            }),
+            "properties.a.properties.b.properties.c"
+         )
+      ); */
    });
 
    test("getJsonPath", () => {

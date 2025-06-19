@@ -1,11 +1,10 @@
 import {
-   type TSchema,
-   type TSchemaTemplateOptions,
-   schema,
-   type TCustomSchema,
-   type TCustomType,
-   type TAnySchema,
-} from "../schema";
+   Schema,
+   symbol,
+   type ISchemaOptions,
+   type StrictOptions,
+   booleanSchema,
+} from "../schema/schema";
 import type {
    Merge,
    OptionalUndefined,
@@ -13,12 +12,9 @@ import type {
    Static,
    StaticCoerced,
 } from "../static";
-import { $optional } from "../symbols";
-import { invariant, isSchema, isValidPropertyName } from "../utils";
-import type { CoercionOptions } from "../validation/coerce";
+import { invariant, isSchema } from "../utils";
 
-export type PropertyName = string;
-export type TProperties = { [key in PropertyName]: TSchema };
+export type TProperties = { [key: string]: Schema };
 
 type ObjectStatic<T extends TProperties> = Simplify<
    OptionalUndefined<{
@@ -31,188 +27,151 @@ type ObjectCoerced<T extends TProperties> = Simplify<
    }>
 >;
 
-export interface ObjectSchema extends TCustomType {
-   $defs?: Record<string, TSchema>;
-   patternProperties?: { [key: string]: TSchema };
-   additionalProperties?: TSchema | false;
+export interface IObjectOptions extends ISchemaOptions {
+   $defs?: Record<string, Schema>;
+   patternProperties?: { [key: string]: Schema };
+   additionalProperties?: Schema | false;
    minProperties?: number;
    maxProperties?: number;
-   propertyNames?: TSchema;
+   propertyNames?: Schema;
 }
 
-export type TObject<
-   P extends TProperties,
-   O extends ObjectSchema = ObjectSchema,
-   Out = O extends { additionalProperties: false }
+// @todo: add base object type
+// @todo: add generic coerce and template that also works with additionalProperties, etc.
+
+export class ObjectSchema<
+   P extends TProperties = TProperties,
+   const O extends IObjectOptions = IObjectOptions
+> extends Schema<
+   O,
+   O extends { additionalProperties: false }
       ? ObjectStatic<P>
-      : Merge<ObjectStatic<P> & { [key: string]: unknown }>
-> = Omit<TCustomSchema<O, Out>, "properties"> & {
+      : Simplify<Merge<ObjectStatic<P> & { [key: string]: unknown }>>,
+   O extends { additionalProperties: false }
+      ? ObjectCoerced<P>
+      : Simplify<Merge<ObjectCoerced<P> & { [key: string]: unknown }>>
+> {
+   override readonly type = "object";
    properties: P;
-   coerce: (value: unknown) => ObjectCoerced<P>;
-};
+   required: string[] | undefined;
 
-export const object = <P extends TProperties, const O extends ObjectSchema>(
-   properties: P,
-   options: O = {} as O
-): TObject<P, O> => {
-   for (const key of Object.keys(properties || {})) {
-      invariant(isValidPropertyName(key), "invalid property name", key);
-      invariant(
-         isSchema(properties[key]),
-         "properties must be managed schemas",
-         properties[key]
+   constructor(properties: P, o?: O) {
+      let required: string[] | undefined = [];
+      for (const [key, value] of Object.entries(properties || {})) {
+         invariant(
+            isSchema(value),
+            "properties must be managed schemas",
+            value
+         );
+         if (!value[symbol].optional) {
+            required.push(key);
+         }
+      }
+
+      const additionalProperties =
+         o?.additionalProperties === false
+            ? booleanSchema(false)
+            : o?.additionalProperties;
+
+      required = required.length > 0 ? required : undefined;
+      super(
+         {
+            ...o,
+            additionalProperties,
+            properties,
+            required,
+         } as any,
+         {
+            template: (opts) => {
+               const result: Record<string, unknown> = {};
+
+               if (this.properties) {
+                  for (const [key, property] of Object.entries(
+                     this.properties
+                  )) {
+                     if (
+                        opts?.withOptional !== true &&
+                        !this.required?.includes(key)
+                     ) {
+                        continue;
+                     }
+
+                     // @ts-ignore
+                     const value = property.template(opts);
+                     if (value !== undefined) {
+                        result[key] = value;
+                     }
+                  }
+               }
+               return result;
+            },
+            coerce: (value, opts) => {
+               if (typeof value === "string") {
+                  // if stringified object
+                  if (value.match(/^\{/)) {
+                     value = JSON.parse(value);
+                  }
+               }
+
+               if (typeof value !== "object" || value === null) {
+                  return undefined;
+               }
+
+               if (this.properties) {
+                  for (const [key, property] of Object.entries(
+                     this.properties
+                  )) {
+                     const v = value[key];
+                     if (v !== undefined) {
+                        // @ts-ignore
+                        value[key] = property.coerce(v, opts);
+                     }
+                  }
+               }
+
+               return value;
+            },
+         }
       );
+      this.properties = properties;
+      this.required = required;
    }
 
-   const required = Object.entries(properties || {})
-      .filter(([, value]) => !($optional in value))
-      .map(([key]) => key);
+   strict() {
+      return new ObjectSchema(this.properties, {
+         ...this[symbol].raw,
+         additionalProperties: false,
+      }) as unknown as ObjectSchema<
+         P,
+         Merge<O & { additionalProperties: false }>
+      >;
+   }
 
-   const additionalProperties =
-      options.additionalProperties === false
-         ? schema(false)
-         : options.additionalProperties;
+   partial() {
+      const props = { ...this.properties };
+      for (const [, prop] of Object.entries(props)) {
+         prop[symbol].optional = true;
+      }
 
-   return schema(
-      {
-         template,
-         coerce,
-         ...options,
-         additionalProperties,
-         type: "object",
-         properties,
-         required: required.length > 0 ? required : undefined,
-      },
-      "object"
-   ) as any;
-};
+      return new ObjectSchema(
+         props,
+         this[symbol].raw
+      ) as unknown as ObjectSchema<
+         {
+            [Key in keyof P]: P[Key] extends Schema<infer O>
+               ? Schema<
+                    O,
+                    P[Key][typeof symbol]["static"] | undefined,
+                    P[Key][typeof symbol]["coerced"] | undefined
+                 >
+               : never;
+         },
+         O
+      >;
+   }
+}
 
-export const strictObject = <
-   P extends TProperties,
-   const O extends Omit<ObjectSchema, "additionalProperties">
->(
+export const object = <P extends TProperties, const O extends IObjectOptions>(
    properties: P,
-   options: O = {} as O
-): TObject<P, Merge<O & { additionalProperties: false }>> => {
-   return object(properties, {
-      ...options,
-      additionalProperties: false,
-   }) as any;
-};
-
-type PartialObjectStatic<T extends TProperties> = {
-   [K in keyof T]?: Static<T[K]>;
-};
-
-type PartialObjectCoerced<T extends TProperties> = {
-   [K in keyof T]?: StaticCoerced<T[K]>;
-};
-
-export type TPartialObject<
-   P extends TProperties,
-   O extends ObjectSchema,
-   Out = O extends { additionalProperties: false }
-      ? PartialObjectStatic<P>
-      : Merge<PartialObjectStatic<P> & { [key: string]: unknown }>
-> = Omit<TCustomSchema<O, Out>, "properties"> & {
-   properties: P;
-   coerce: (
-      value: unknown
-   ) => Simplify<OptionalUndefined<PartialObjectCoerced<P>>>;
-};
-
-export const partialObject = <
-   P extends TProperties,
-   const O extends ObjectSchema
->(
-   properties: P,
-   options: O = {} as O
-): TPartialObject<P, O> => {
-   const partial = Object.fromEntries(
-      Object.entries(properties).map(([key, value]) => [
-         key,
-         // @ts-ignore
-         "optional" in value ? value.optional() : value,
-      ])
-   );
-
-   return object(partial, options) as any;
-};
-
-export interface RecordSchema extends TCustomType {
-   additionalProperties: never;
-}
-
-type RecordStatic<AP extends TAnySchema> = Record<string, Static<AP>>;
-
-export type TRecord<AP extends TAnySchema, O extends RecordSchema> = Omit<
-   TCustomSchema<O, RecordStatic<AP>>,
-   "additionalProperties"
-> & {
-   additionalProperties: AP;
-};
-
-export const record = <
-   const AP extends TAnySchema,
-   const O extends RecordSchema
->(
-   ap: AP,
-   options: O = {} as O
-): TRecord<AP, O> => {
-   return schema(
-      {
-         template,
-         coerce,
-         ...options,
-         type: "object",
-         additionalProperties: ap,
-      },
-      "object"
-   ) as any;
-};
-
-function template(this: TSchema, opts: TSchemaTemplateOptions = {}) {
-   const result: Record<string, unknown> = {};
-
-   if (this.properties) {
-      for (const [key, property] of Object.entries(this.properties)) {
-         if (opts.withOptional !== true && !this.required?.includes(key)) {
-            continue;
-         }
-
-         // @ts-ignore
-         const value = property.template(opts);
-         if (value !== undefined) {
-            result[key] = value;
-         }
-      }
-   }
-   return result;
-}
-
-function coerce(this: TSchema, _value: unknown, opts: CoercionOptions = {}) {
-   //console.log("object:coerce", { _value, type: typeof _value });
-   let value = _value;
-   if (typeof value === "string") {
-      // if stringified object
-      if (value.match(/^\{/) || value.match(/^\[/)) {
-         value = JSON.parse(value);
-      }
-   }
-
-   if (typeof value !== "object" || value === null) {
-      return undefined;
-   }
-
-   if (this.properties) {
-      for (const [key, property] of Object.entries(this.properties)) {
-         const v = value[key];
-         if (v !== undefined) {
-            // @ts-ignore
-            value[key] = property.coerce(v, opts);
-         }
-      }
-   }
-
-   return value;
-}
+   options?: StrictOptions<IObjectOptions, O>
+): ObjectSchema<P, O> & O => new ObjectSchema(properties, options) as any;
