@@ -9,6 +9,10 @@ import {
 } from "./utils";
 import * as t from "./types";
 
+interface CustomEnv extends Env {
+   [key: string]: any;
+}
+
 export const openAPISpecs = <E extends Env>(
    hono: Hono<E>,
    specs: Partial<t.Document> = {} as t.Document

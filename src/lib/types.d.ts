@@ -10,11 +10,6 @@ export type JSONSchemaTypeName =
 export type JSONSchemaDefinition = JSONSchema | boolean;
 export type PropertyName = string;
 
-export type Bla = {
-   enum?: readonly any[] | any[];
-   const?: any;
-};
-
 export type BaseJSONSchema = {
    $id?: string;
    $ref?: string;
@@ -50,8 +45,8 @@ export type NumberSchema = BaseJSONSchema & {
 export type BooleanSchema = BaseJSONSchema;
 
 export type ArraySchema<
-   Items extends JSONSchemaDefinition = JSONSchemaDefinition,
-   Contains extends JSONSchemaDefinition = JSONSchemaDefinition
+   Items = JSONSchemaDefinition,
+   Contains = JSONSchemaDefinition
 > = BaseJSONSchema & {
    items?: Items | boolean;
    uniqueItems?: boolean;
@@ -64,11 +59,11 @@ export type ArraySchema<
 };
 
 export type ObjectSchema<
-   P extends JSONSchemaDefinition = JSONSchemaDefinition,
-   PP extends JSONSchemaDefinition = P,
-   AP extends JSONSchemaDefinition = P,
-   DP extends JSONSchemaDefinition = P,
-   PN extends JSONSchemaDefinition = P
+   P = BaseJSONSchema,
+   PP = P,
+   AP = P,
+   DP = P,
+   PN = P
 > = BaseJSONSchema & {
    properties?: { [key in PropertyName]: P };
    patternProperties?: { [key: string]: PP };
@@ -82,9 +77,8 @@ export type ObjectSchema<
    propertyNames?: PN | boolean;
 };
 
-export interface JSONSchema<
-   S extends JSONSchemaDefinition = JSONSchemaDefinition
-> extends BaseJSONSchema,
+export interface JSONSchema<S = BaseJSONSchema>
+   extends BaseJSONSchema,
       StringSchema,
       NumberSchema,
       BooleanSchema,

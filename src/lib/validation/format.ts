@@ -1,4 +1,3 @@
-import type { TSchema } from "../schema";
 import { isString } from "../utils";
 import { error, valid } from "../utils/details";
 import type { ValidationOptions } from "./validate";
@@ -215,7 +214,7 @@ const formats = {
 };
 
 export const format = (
-   { format }: TSchema,
+   { format }: { format?: string },
    value: unknown,
    opts: ValidationOptions = {}
 ) => {
