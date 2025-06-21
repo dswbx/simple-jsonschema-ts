@@ -1,6 +1,6 @@
 import { expectTypeOf } from "expect-type";
 import type { Static, StaticCoerced } from "../static";
-import { anyOf, oneOf } from "./union";
+import { anyOf, oneOf, type StaticUnion, type StaticUnion2 } from "./union";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
 import { string } from "../string/string";
@@ -8,7 +8,7 @@ import { number, integer } from "../number/number";
 import { object } from "../object/object";
 import { array } from "../array/array";
 import { any, literal } from "../schema/misc";
-import type { symbol } from "../schema/schema";
+import type { Schema, symbol } from "../schema/schema";
 
 describe("union", () => {
    test("anyOf", () => {
@@ -119,6 +119,65 @@ describe("union", () => {
             },
          ],
       });
+   });
+
+   test("anyOf with objects as array", () => {
+      const objects = {
+         one: object({
+            type: literal("one"),
+            name: string(),
+         }),
+         two: object({
+            type: literal("two"),
+            name: string(),
+            num: number(),
+         }),
+      } as const;
+      const v = Object.values(objects);
+      const schema = anyOf(v);
+      type Inferred = Static<typeof schema>;
+      //   ^?
+
+      {
+         const schema = anyOf([objects.one, objects.two]);
+         type Inferred = Static<typeof schema>;
+         //   ^?
+      }
+      {
+         const v = [objects.one, objects.two];
+         const schema = anyOf(v);
+         type Inferred = Static<typeof schema>;
+         //   ^?
+      }
+      {
+         type Union2<T extends Schema[]> = {
+            [K in keyof T]: T[K] extends Schema ? Static<T[K]> : never;
+         }[number];
+         type T2 = Union2<typeof v>;
+         //   ^?
+      }
+   });
+
+   test("anyOf with enum string, and string", () => {
+      const arr = [
+         string({ enum: ["entity", "relation", "media"] }),
+         string({ pattern: "^template-" }),
+      ];
+      const action = string({ enum: ["entity", "relation", "media"] });
+      type ActionInferred = Static<typeof action>;
+      //   ^?
+
+      const anyAction = string({ pattern: "^template-" });
+      type AnyActionInferred = Static<typeof anyAction>;
+      //   ^?
+
+      const schemaAction = anyOf([
+         string({ enum: ["entity", "relation", "media"] }),
+         string({ pattern: "^template-" }),
+      ]);
+      type Inferred = Static<typeof schemaAction>;
+      //   ^?
+      type Inferred2 = StaticUnion2<typeof arr>;
    });
 
    test("oneOf", () => {

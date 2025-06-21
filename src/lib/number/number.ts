@@ -4,7 +4,7 @@ import {
    type ISchemaOptions,
    type StrictOptions,
 } from "../schema/schema";
-import { isString } from "../utils";
+import { isNumber, isString } from "../utils";
 
 export interface INumberOptions extends ISchemaOptions {
    multipleOf?: number;
@@ -20,7 +20,11 @@ const base = (
    o?: INumberOptions
 ) =>
    createSchema(type, o, {
-      template: () => 0,
+      template: (value, opts) => {
+         if (!opts?.withExtendedOptional) return value;
+         if (value === undefined || !isNumber(value)) return o?.minimum ?? 0;
+         return value;
+      },
       coerce: (value) => {
          if (isString(value)) {
             const n = overrides.parseFn(value);

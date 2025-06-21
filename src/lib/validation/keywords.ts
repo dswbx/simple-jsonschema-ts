@@ -26,6 +26,8 @@ export const _type = (
    opts: Opts = {}
 ) => {
    if (type === undefined) return valid();
+   // @todo: not entirely sure about this
+   if (value === undefined) return valid();
 
    let msg: string | undefined;
    const types = {
@@ -156,12 +158,16 @@ export const ifThenElse = (
  * Strings
  */
 export const pattern = (
-   { pattern = "" }: { pattern?: string },
+   { pattern = "" }: { pattern?: string | RegExp },
    value: unknown,
    opts: Opts = {}
 ) => {
    if (!isString(value)) return valid();
-   if (new RegExp(pattern, "u").test(value)) return valid();
+   if (pattern instanceof RegExp) {
+      if (pattern.test(value)) return valid();
+   } else {
+      if (new RegExp(pattern, "u").test(value)) return valid();
+   }
    return error(
       opts,
       "pattern",

@@ -1,6 +1,12 @@
 import { expectTypeOf } from "expect-type";
 import type { Static, StaticCoerced } from "../static";
-import { object } from "./object";
+import {
+   object,
+   type ObjectDefaults,
+   ObjectSchema,
+   partialObject,
+   strictObject,
+} from "./object";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
 import { string } from "../string/string";
@@ -71,6 +77,52 @@ describe("object", () => {
             additionalProperties: false,
          });
       }
+
+      {
+         // ensure it's all schemas
+         expect(() =>
+            object({
+               name: string(),
+               age: number(),
+               // @ts-expect-error
+               invalid: 1,
+            })
+         ).toThrow();
+      }
+
+      {
+         type T = Static<ObjectSchema>;
+         //   ^?
+         expectTypeOf<T>().toEqualTypeOf<{
+            [key: string]: unknown;
+            [key: number]: unknown;
+         }>();
+
+         /* type C = StaticCoerced<ObjectSchema>;
+         //   ^?
+         expectTypeOf<C>().toEqualTypeOf<{
+            [key: string]: unknown;
+         }>(); */
+      }
+   });
+   test("with properties", () => {
+      const name = string();
+      const schema = object({
+         name: string(),
+         age: number({ minimum: 1 }).optional(),
+      });
+      type Inferred = Static<typeof schema>;
+      expectTypeOf<Inferred>().toEqualTypeOf<{
+         name: string;
+         age?: number;
+         [key: string]: unknown;
+      }>();
+      type Coerced = StaticCoerced<typeof schema>;
+      expectTypeOf<Coerced>().toEqualTypeOf<{
+         name: string;
+         age?: number;
+         [key: string]: unknown;
+      }>();
    });
 
    test("with properties", () => {
@@ -128,6 +180,29 @@ describe("object", () => {
          required: ["name", "age"],
          additionalProperties: false,
       });
+
+      {
+         // using strictObject
+         const schema = strictObject({
+            name: string({ maxLength: 1 }),
+            age: number(),
+         });
+         type Inferred = Static<typeof schema>;
+         expectTypeOf<Inferred>().toEqualTypeOf<{
+            name: string;
+            age: number;
+         }>();
+
+         assertJson(schema, {
+            type: "object",
+            properties: {
+               name: { type: "string", maxLength: 1 },
+               age: { type: "number" },
+            },
+            required: ["name", "age"],
+            additionalProperties: false,
+         });
+      }
    });
 
    test("partialObject", () => {
@@ -174,6 +249,9 @@ describe("object", () => {
          });
 
          type Coerced = StaticCoerced<typeof schema>;
+         type C =
+            (typeof schema)["properties"]["name"][typeof symbol]["coerced"];
+
          expectTypeOf<Coerced>().toEqualTypeOf<{
             name?: string;
             age?: number;
@@ -456,16 +534,37 @@ describe("object", () => {
          }
       });
 
+      test("with optional prop as undefined", () => {
+         const schema = object({
+            name: string(),
+            type: string().optional(),
+         });
+         expect(schema.validate({ name: "John" }).valid).toBe(true);
+         expect(schema.validate({ name: "John", type: undefined }).valid).toBe(
+            true
+         );
+      });
+
       test("template", () => {
          const schema = object({
             name: string(),
-            surname: string().optional(),
-         });
+            surname: string({ default: "Doe" }).optional(),
+         }).strict();
          expect(schema.template()).toEqual({ name: "" });
-         expect(schema.template({ withOptional: true })).toEqual({
+         expect(schema.template({}, { withOptional: true })).toEqual({
             name: "",
             surname: "",
          });
+
+         type Defaults = ObjectDefaults<(typeof schema)["properties"]>;
+         //   ^?
+
+         const schema2 = partialObject({
+            name: string(),
+            surname: string({ default: "Doe" }),
+         });
+         type Defaults2 = ObjectDefaults<(typeof schema2)["properties"]>;
+         //   ^?
 
          // object in object
          {
@@ -474,7 +573,7 @@ describe("object", () => {
                   name: string().optional(),
                }).optional(),
             });
-            expect(schema.template({ withOptional: true })).toEqual({
+            expect(schema.template({}, { withOptional: true })).toEqual({
                nested: {
                   name: "",
                },
@@ -569,6 +668,51 @@ describe("object", () => {
             force?: boolean;
             [key: string]: unknown;
          }>();
+      }
+   });
+
+   test("template", () => {
+      const schema = object({
+         obj: object({
+            name: string(),
+         }),
+      });
+
+      expect(schema.template()).toEqual({ obj: { name: "" } });
+      expect(schema.template({ obj: { name: "what" } })).toEqual({
+         obj: { name: "what" },
+      });
+
+      {
+         // precedence is
+         // 1. const
+         // 2. template initial
+         // 3. parent default
+         // 4. child default
+         const schema = object({
+            obj: object(
+               {
+                  name: string({ default: "child" }),
+               },
+               {
+                  default: { name: "parent" },
+               }
+            ),
+         });
+         expect(schema.template({ obj: { name: "initial" } })).toEqual({
+            obj: { name: "initial" },
+         });
+         expect(schema.template()).toEqual({ obj: { name: "parent" } });
+
+         const schema2 = object({
+            obj: object({
+               name: string({ default: "child" }),
+            }),
+         });
+         expect(schema2.template({ obj: { name: "initial" } })).toEqual({
+            obj: { name: "initial" },
+         });
+         expect(schema2.template()).toEqual({ obj: { name: "child" } });
       }
    });
 });

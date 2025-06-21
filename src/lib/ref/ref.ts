@@ -12,7 +12,7 @@ export class RefType<
    Coerced = T extends TRefType ? StaticCoerced<T> : T
    // @todo: should be "O"
 > extends Schema<ISchemaOptions, Out, Coerced> {
-   $ref: Ref;
+   override readonly $ref: Ref;
 
    constructor(ref: T, $ref: Ref) {
       if (!$ref && !isSchema(ref)) {

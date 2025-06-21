@@ -101,6 +101,19 @@ describe("string", () => {
          }
       });
 
+      test("pattern", () => {
+         // allows javascript regex
+         const email = string({
+            pattern: /^[\w-\.\+_]+@([\w-]+\.)+[\w-]{2,4}$/,
+         });
+         expect(email.validate("test@test.com").valid).toBe(true);
+         expect(email.validate("..").valid).toBe(false);
+         expect(email.toJSON()).toEqual({
+            type: "string",
+            pattern: "^[\\w-\\.\\+_]+@([\\w-]+\\.)+[\\w-]{2,4}$",
+         });
+      });
+
       test("custom", () => {
          const schema = string({
             minLength: 3,
@@ -118,9 +131,14 @@ describe("string", () => {
    });
 
    test("template", () => {
-      expect(string().template()).toEqual("");
+      expect(
+         string().template(undefined, { withExtendedOptional: true })
+      ).toEqual("");
       expect(string({ default: "hello" }).template()).toEqual("hello");
       expect(string({ const: "hello" }).template()).toEqual("hello");
+
+      // ignores no strings
+      //expect(string().template(1)).toEqual("");
    });
 
    test("coerce", () => {

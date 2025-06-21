@@ -212,10 +212,8 @@ describe("ref", () => {
             [key: string]: unknown;
          }>();
          type Coerced = StaticCoerced<typeof s>;
-         // @ts-expect-error
          expectTypeOf<Coerced>().toEqualTypeOf<{
             id: string;
-            // @todo: fix this
             nodes: unknown[];
             [key: string]: unknown;
          }>();
@@ -297,7 +295,7 @@ describe("ref", () => {
          );
          type Inferred = Static<typeof s>;
 
-         expect(s.toJSON()).toEqual({
+         assertJson(s, {
             type: "object",
             properties: {
                id: {

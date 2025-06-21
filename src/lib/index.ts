@@ -18,11 +18,23 @@ export type {
    OptionallyOptional,
    StaticConstEnum,
    StaticCoerced,
+   Writeable,
+   DeepWriteable,
 } from "./static";
-export { object, ObjectSchema, type IObjectOptions } from "./object/object";
-export { string, type IStringOptions } from "./string/string";
+export {
+   object,
+   ObjectSchema,
+   type IObjectOptions,
+   strictObject,
+   partialObject,
+   type ObjectStatic,
+   type ObjectCoerced,
+   type ObjectDefaults,
+} from "./object/object";
+export { record, RecordSchema, type IRecordOptions } from "./object/record";
+export { string, StringSchema, type IStringOptions } from "./string/string";
 export { number, type INumberOptions, integer } from "./number/number";
-export { array, type IArrayOptions } from "./array/array";
+export { array, ArraySchema, type IArrayOptions } from "./array/array";
 export { boolean, type IBooleanOptions } from "./boolean/boolean";
 export { type IUnionOptions, anyOf, oneOf } from "./union/union";
 export { allOf } from "./union/all-of";

@@ -11,25 +11,50 @@ import type {
    Simplify,
    Static,
    StaticCoerced,
+   Writeable,
 } from "../static";
-import { invariant, isSchema } from "../utils";
+import { invariant, isObject, isSchema } from "../utils";
+import { getPath } from "../utils/path";
 
-export type TProperties = { [key: string]: Schema };
+export type TProperties = {
+   [key: string]: Schema;
+};
+export type TProperties2<P extends object> = {
+   [K in keyof P]: P[K] extends Schema ? P[K] : never;
+};
 
-type ObjectStatic<T extends TProperties> = Simplify<
-   OptionalUndefined<{
-      [K in keyof T]: Static<T[K]>;
-   }>
+export type ObjectStatic<T extends TProperties> = Simplify<
+   OptionalUndefined<
+      // this is adding the `[key: number]: unknown` signature
+      Writeable<{
+         [K in keyof T]: Static<T[K]>;
+      }>
+   >
 >;
-type ObjectCoerced<T extends TProperties> = Simplify<
-   OptionalUndefined<{
-      [K in keyof T]: StaticCoerced<T[K]>;
-   }>
+
+export type ObjectCoerced<T extends TProperties> = Simplify<
+   OptionalUndefined<
+      Writeable<{
+         [K in keyof T]: StaticCoerced<T[K]>;
+      }>
+   >
+>;
+
+export type ObjectDefaults<T extends TProperties> = Simplify<
+   OptionalUndefined<
+      Writeable<{
+         [K in keyof T]: T[K] extends {
+            default: infer D;
+         }
+            ? D
+            : T[K][typeof symbol]["static"];
+      }>
+   >
 >;
 
 export interface IObjectOptions extends ISchemaOptions {
    $defs?: Record<string, Schema>;
-   patternProperties?: { [key: string]: Schema };
+   patternProperties?: Record<string, Schema>;
    additionalProperties?: Schema | false;
    minProperties?: number;
    maxProperties?: number;
@@ -40,7 +65,7 @@ export interface IObjectOptions extends ISchemaOptions {
 // @todo: add generic coerce and template that also works with additionalProperties, etc.
 
 export class ObjectSchema<
-   P extends TProperties = TProperties,
+   const P extends TProperties = TProperties,
    const O extends IObjectOptions = IObjectOptions
 > extends Schema<
    O,
@@ -82,27 +107,36 @@ export class ObjectSchema<
             required,
          } as any,
          {
-            template: (opts) => {
+            template: (_value, opts) => {
                const result: Record<string, unknown> = {};
+               let value = isObject(_value) ? _value : {};
 
                if (this.properties) {
                   for (const [key, property] of Object.entries(
                      this.properties
                   )) {
-                     if (
-                        opts?.withOptional !== true &&
-                        !this.required?.includes(key)
-                     ) {
-                        continue;
+                     const v = getPath(value, key);
+
+                     if (property.isOptional()) {
+                        if (opts?.withOptional !== true && v === undefined) {
+                           continue;
+                        }
                      }
 
-                     // @ts-ignore
-                     const value = property.template(opts);
-                     if (value !== undefined) {
-                        result[key] = value;
+                     const template = property.template(v, opts);
+                     if (template !== undefined) {
+                        result[key] = template;
                      }
                   }
                }
+
+               if (
+                  Object.keys(result).length === 0 &&
+                  !opts?.withExtendedOptional
+               ) {
+                  return undefined;
+               }
+
                return result;
             },
             coerce: (value, opts) => {
@@ -158,7 +192,7 @@ export class ObjectSchema<
          this[symbol].raw
       ) as unknown as ObjectSchema<
          {
-            [Key in keyof P]: P[Key] extends Schema<infer O>
+            [Key in keyof P]: P[Key] extends Schema<infer O, infer T, infer C>
                ? Schema<
                     O,
                     P[Key][typeof symbol]["static"] | undefined,
@@ -171,7 +205,28 @@ export class ObjectSchema<
    }
 }
 
-export const object = <P extends TProperties, const O extends IObjectOptions>(
+// @todo: this is a hack to get the type inference to work
+// cannot make P extends TProperties, destroys the type inference atm
+export const object = <
+   const P extends TProperties2<P>,
+   const O extends IObjectOptions
+>(
    properties: P,
    options?: StrictOptions<IObjectOptions, O>
 ): ObjectSchema<P, O> & O => new ObjectSchema(properties, options) as any;
+
+export const strictObject = <
+   const P extends TProperties2<P>,
+   const O extends IObjectOptions
+>(
+   properties: P,
+   options?: StrictOptions<IObjectOptions, O>
+) => object(properties, options).strict();
+
+export const partialObject = <
+   const P extends TProperties2<P>,
+   const O extends IObjectOptions
+>(
+   properties: P,
+   options?: StrictOptions<IObjectOptions, O>
+) => object(properties, options).partial();

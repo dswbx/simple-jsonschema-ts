@@ -66,9 +66,8 @@ export function schemaToSpec(
                name: key,
                in: _in,
                required: obj.required?.includes(key) || undefined,
-               // @ts-expect-error
                description: subSchema?.description || undefined,
-               schema: structuredClone(subSchema.toJSON()),
+               schema: structuredClone(subSchema.toJSON() as any),
             };
          }),
       };
@@ -77,9 +76,8 @@ export function schemaToSpec(
          requestBody: {
             content: {
                [_requestBody.type]: {
-                  schema: structuredClone(obj.toJSON()),
+                  schema: structuredClone(obj.toJSON() as any),
                   example:
-                     // @ts-expect-error
                      obj.examples?.[0] ?? obj.template({ withOptional: true }),
                },
             },

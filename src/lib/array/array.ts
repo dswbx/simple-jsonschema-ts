@@ -20,7 +20,7 @@ export interface IArrayOptions extends ISchemaOptions {
    minItems?: number;
 }
 
-export class ArrayType<
+export class ArraySchema<
    const Items extends Schema,
    const O extends IArrayOptions
 > extends Schema<O, ArrayStatic<Items>, ArrayCoerced<Items>> {
@@ -33,7 +33,10 @@ export class ArrayType<
             items,
          },
          {
-            template: () => [],
+            template: (value) => {
+               if (value === undefined || !Array.isArray(value)) return [];
+               return value;
+            },
             coerce: (_value, opts) => {
                try {
                   const value =
@@ -65,4 +68,4 @@ export const array = <
 >(
    items?: Items,
    options?: StrictOptions<IArrayOptions, O>
-): ArrayType<Items, O> & O => new ArrayType(items, options) as any;
+): ArraySchema<Items, O> & O => new ArraySchema(items, options) as any;

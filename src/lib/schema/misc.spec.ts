@@ -55,6 +55,9 @@ describe("literal", () => {
       type Coerced = StaticCoerced<typeof schema>;
       expectTypeOf<Coerced>().toEqualTypeOf<1>();
       assertJson(schema, { const: 1 });
+
+      expect(schema.const).toBe(1);
+      expectTypeOf<typeof schema.const>().toEqualTypeOf<1>();
    });
 
    test("primitives", () => {

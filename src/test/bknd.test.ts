@@ -2,9 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { expectTypeOf } from "expect-type";
 import * as s from "../lib";
 import { assertJson } from "../lib/assert";
-import type { NumberSchema } from "../lib/types";
 import { type CoercionOptions } from "../lib";
 import { isObject } from "../lib/utils";
+import * as tb from "@sinclair/typebox";
+import { Type } from "@sinclair/typebox";
+import { Default } from "@sinclair/typebox/value";
 
 describe("Field", () => {
    const ActionContext = ["create", "read", "update", "delete"] as const;
@@ -82,7 +84,7 @@ describe("Field", () => {
       }>();
 
       expect(baseFieldConfig.template()).toEqual({});
-      expect(baseFieldConfig.template({ withOptional: true })).toEqual({
+      expect(baseFieldConfig.template({}, { withOptional: true })).toEqual({
          label: "",
          description: "",
          required: false,
@@ -223,7 +225,7 @@ describe("AppServer", () => {
 
 describe("misc", () => {
    test("RepoQuery", () => {
-      const numberOrString = <N extends NumberSchema>(c: N = {} as N) =>
+      const numberOrString = (c: s.INumberOptions = {}) =>
          s.anyOf([s.number(c), s.string()], {
             coerce: Number,
          });
@@ -317,9 +319,6 @@ describe("misc", () => {
 
       expect(repoQuery.coerce({ limit: "11", select: "id" })).toEqual({
          limit: 11,
-         offset: 0,
-         sort: { by: "id", dir: "asc" },
-         join: [],
          select: ["id"],
       });
    });
@@ -331,7 +330,7 @@ describe("misc", () => {
          // allow "id", "id,title" – but not "id," or "not allowed"
          pattern: "^(?:[a-zA-Z_$][\\w$]*)(?:,[a-zA-Z_$][\\w$]*)*$",
       });
-      const numberOrString = <N extends s.NumberSchema>(c: N = {} as N) =>
+      const numberOrString = (c: s.INumberOptions = {}) =>
          s.anyOf([s.number(c), s.string()], {
             coerce: Number,
          });
@@ -483,7 +482,7 @@ describe("misc", () => {
       );
    });
 
-   test.only("RepoQuery2", () => {
+   test("RepoQuery2", () => {
       // -------
       // helpers
       const stringIdentifier = s.string({
@@ -558,7 +557,7 @@ describe("misc", () => {
          }
       >;
 
-      const withSchema = <In, Out = In>(self: s.SchemaType): any =>
+      const withSchema = <In, Out = In>(self: s.Schema): any =>
          s.anyOf([stringIdentifier, s.array(stringIdentifier), self], {
             coerce: function (_value: unknown, opts: CoercionOptions = {}) {
                let value: any = _value;
@@ -641,5 +640,130 @@ describe("misc", () => {
             ignoreUnsupported: true,
          })
       ); */
+   });
+});
+
+describe("schemas", () => {
+   const StringEnum = <const T extends readonly string[]>(
+      values: T,
+      options?: tb.StringOptions
+   ) =>
+      tb.Type.Unsafe<T[number]>({
+         [tb.Kind]: "StringEnum",
+         type: "string",
+         enum: values,
+         ...options,
+      });
+
+   test("AppServer", () => {
+      const serverMethods = ["GET", "POST", "PATCH", "PUT", "DELETE"] as const;
+      const schemas = {
+         jsonv: s
+            .object({
+               cors: s
+                  .object({
+                     origin: s.string({ default: "*" }),
+                     allow_methods: s.array(s.string({ enum: serverMethods }), {
+                        default: serverMethods,
+                        uniqueItems: true,
+                     }),
+                     allow_headers: s.array(s.string(), {
+                        default: [
+                           "Content-Type",
+                           "Content-Length",
+                           "Authorization",
+                           "Accept",
+                        ],
+                     }),
+                  })
+                  .strict(),
+            })
+            .strict(),
+         typebox: Type.Object(
+            {
+               cors: Type.Object(
+                  {
+                     origin: Type.String({ default: "*" }),
+                     allow_methods: Type.Array(StringEnum(serverMethods), {
+                        default: serverMethods,
+                        uniqueItems: true,
+                     }),
+                     allow_headers: Type.Array(Type.String(), {
+                        default: [
+                           "Content-Type",
+                           "Content-Length",
+                           "Authorization",
+                           "Accept",
+                        ],
+                     }),
+                  },
+                  { default: {}, additionalProperties: false }
+               ),
+            },
+            {
+               additionalProperties: false,
+            }
+         ),
+      };
+
+      expect(schemas.jsonv.template()).toEqual({
+         cors: {
+            origin: "*",
+            allow_methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
+            allow_headers: [
+               "Content-Type",
+               "Content-Length",
+               "Authorization",
+               "Accept",
+            ],
+         },
+      });
+      expect(
+         schemas.jsonv.template({
+            cors: {
+               origin: "https",
+               allow_methods: ["GET", "POST"],
+            },
+         })
+      ).toEqual({
+         cors: {
+            origin: "https",
+            allow_methods: ["GET", "POST"],
+            allow_headers: [
+               "Content-Type",
+               "Content-Length",
+               "Authorization",
+               "Accept",
+            ],
+         },
+      });
+   });
+
+   test.only("Field", () => {
+      test.only("TextField", () => {
+         const textFieldConfigSchema = s
+            .strictObject({
+               default_value: s.string(),
+               minLength: s.number(),
+               maxLength: s.number(),
+               pattern: s.string(),
+               html_config: s.object({
+                  element: s.string({ default: "input" }),
+                  props: s.record(
+                     s.anyOf([
+                        s.string({ title: "String" }),
+                        s.number({ title: "Number" }),
+                     ])
+                  ),
+               }),
+            })
+            .partial();
+
+         console.log("template", textFieldConfigSchema.template());
+         console.log(
+            "template",
+            textFieldConfigSchema.template({}, { withOptional: true })
+         );
+      });
    });
 });

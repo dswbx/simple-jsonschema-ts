@@ -4,10 +4,13 @@ import {
    type ISchemaOptions,
    type StrictOptions,
 } from "../schema/schema";
-import type { Static, StaticCoerced } from "../static";
+import type { Merge, Static, StaticCoerced } from "../static";
 import { matches } from "../validation/keywords";
 
-export type StaticUnion<T extends Schema[]> = T extends [infer U, ...infer Rest]
+export type StaticUnion2<T extends Schema[]> = T extends [
+   infer U,
+   ...infer Rest
+]
    ? U extends Schema
       ? Rest extends Schema[]
          ? StaticUnion<Rest> | Static<U>
@@ -15,7 +18,11 @@ export type StaticUnion<T extends Schema[]> = T extends [infer U, ...infer Rest]
       : never
    : never;
 
-export type StaticUnionCoerced<T extends Schema[]> = T extends [
+export type StaticUnion<T extends Schema[]> = {
+   [K in keyof T]: T[K] extends Schema ? Static<T[K]> : never;
+}[number];
+
+/* export type StaticUnionCoerced<T extends Schema[]> = T extends [
    infer U,
    ...infer Rest
 ]
@@ -24,7 +31,11 @@ export type StaticUnionCoerced<T extends Schema[]> = T extends [
          ? StaticUnionCoerced<Rest> | StaticCoerced<U>
          : StaticCoerced<U>
       : never
-   : never;
+   : never; */
+
+export type StaticUnionCoerced<T extends Schema[]> = {
+   [K in keyof T]: T[K] extends Schema ? StaticCoerced<T[K]> : never;
+}[number];
 
 export type StaticUnionCoercedOptions<
    O extends ISchemaOptions,
@@ -78,8 +89,8 @@ const union = (
 export const anyOf = <const T extends Schema[], const O extends IUnionOptions>(
    schemas: T,
    options?: StrictOptions<IUnionOptions, O>
-): Schema<O, StaticUnion<T>, StaticUnionCoercedOptions<O, T>> & O =>
-   union("anyOf", schemas, options) as any;
+): Schema<O, StaticUnion<T>, StaticUnionCoercedOptions<O, T>> &
+   Merge<O & { anyOf: T }> => union("anyOf", schemas, options) as any;
 
 export const oneOf = <const T extends Schema[], const O extends IUnionOptions>(
    schemas: T,

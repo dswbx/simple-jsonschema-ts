@@ -30,7 +30,7 @@ export interface ILiteralOptions
 export const literal = <const L, const O extends ILiteralOptions>(
    value: TLiteralType<L, Schema>,
    o?: StrictOptions<ILiteralOptions, O>
-): Schema<Merge<O & { const: L }>, L, L> & O =>
+): Schema<O, L, L> & Merge<O & { const: L }> =>
    createSchema(undefined as any, {
       ...o,
       const: value,

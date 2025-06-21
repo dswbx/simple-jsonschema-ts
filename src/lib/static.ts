@@ -1,4 +1,4 @@
-import type { Schema, symbol } from "./schema";
+import type { Schema, IAnySchema, symbol } from "./schema";
 
 // from https://github.com/type-challenges/type-challenges/issues/28200
 export type Merge<T> = {
@@ -23,14 +23,19 @@ export type OptionalUndefined<
 export type Simplify<T> = { [KeyType in keyof T]: T[KeyType] } & {};
 
 export type OptionallyOptional<T, C> = T extends undefined ? C | undefined : C;
+export type Writeable<T> = { -readonly [P in keyof T]: T[P] };
+export type DeepWriteable<T> = {
+   -readonly [P in keyof T]: DeepWriteable<T[P]>;
+};
 
-export type Static<S extends Schema> = S[typeof symbol]["static"] extends {
-   [key: string]: any;
-}
-   ? Simplify<S[typeof symbol]["static"]>
-   : S[typeof symbol]["static"];
+export type Static<S extends Schema | IAnySchema> =
+   S[typeof symbol]["static"] extends {
+      [key: string]: any;
+   }
+      ? Simplify<S[typeof symbol]["static"]>
+      : S[typeof symbol]["static"];
 
-export type StaticCoerced<S extends Schema> =
+export type StaticCoerced<S extends Schema | IAnySchema> =
    S[typeof symbol]["coerced"] extends {
       [key: string]: any;
    }

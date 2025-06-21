@@ -1,4 +1,5 @@
-import type { OptionallyOptional, StaticConstEnum } from "../static";
+import type { OptionallyOptional, Simplify, StaticConstEnum } from "../static";
+import type { JSONSchemaDefinition } from "../types";
 import { error, valid } from "../utils/details";
 import { coerce, type CoercionOptions } from "../validation/coerce";
 import { Resolver } from "../validation/resolver";
@@ -10,6 +11,7 @@ import {
 
 export type TSchemaTemplateOptions = {
    withOptional?: boolean;
+   withExtendedOptional?: boolean;
 };
 
 export interface IBaseSchemaOptions {
@@ -30,7 +32,7 @@ export interface IBaseSchemaOptions {
 export interface ISchemaFn {
    validate?: (value: unknown, opts?: ValidationOptions) => ValidationResult;
    coerce?: (value: unknown, opts?: CoercionOptions) => unknown;
-   template?: (opts?: TSchemaTemplateOptions) => unknown;
+   template?: (value?: unknown, opts?: TSchemaTemplateOptions) => unknown;
 }
 
 export interface ISchemaOptions
@@ -43,12 +45,17 @@ export type StrictOptions<S extends ISchemaOptions, O extends S> = O & {
 
 export const symbol = Symbol.for("schema");
 
+export interface IAnySchema extends IBaseSchemaOptions {
+   [symbol]: any;
+   toJSON(): object;
+}
+
 export class Schema<
    Options extends ISchemaOptions = ISchemaOptions,
    Type = unknown,
    Coerced = Type
-> {
-   readonly type: string | undefined;
+> implements IBaseSchemaOptions
+{
    [symbol]!: {
       raw?: Options | any;
       static: StaticConstEnum<Options, Type>;
@@ -60,6 +67,18 @@ export class Schema<
       optional: boolean;
       overrides?: ISchemaFn;
    };
+
+   readonly type: string | undefined;
+   $id?: string;
+   $ref?: string;
+   $schema?: string;
+   title?: string;
+   description?: string;
+   readOnly?: boolean;
+   writeOnly?: boolean;
+   $comment?: string;
+   examples?: any[];
+   //const?: any;
 
    constructor(o?: Options, overrides?: ISchemaFn) {
       // just prevent overriding properties
@@ -75,17 +94,41 @@ export class Schema<
       };
    }
 
-   template(opts?: TSchemaTemplateOptions): Type {
+   template(_value?: unknown, opts?: TSchemaTemplateOptions): Type {
       const s = this as ISchemaOptions;
+      let value = _value;
 
-      if (s.const !== undefined) return s.const;
-      if (s.default !== undefined) return s.default;
-      if (s.enum !== undefined) return s.enum[0] as any;
-      if (this[symbol].raw?.template) {
-         return this[symbol].raw.template(opts) as any;
+      // if const is defined, ignore initial
+      if (s.const !== undefined) {
+         value = s.const;
+      } else if (!value) {
+         // if no value, use enum or default
+         if (s.default !== undefined) value = s.default;
+         if (opts?.withExtendedOptional && s.enum !== undefined) {
+            value = s.enum[0] as any;
+         }
       }
 
-      return this[symbol].overrides?.template?.(opts) as any;
+      if (
+         opts?.withOptional !== true &&
+         value === undefined &&
+         this.isOptional()
+      ) {
+         return value as any;
+      }
+
+      if (this[symbol].raw?.template) {
+         const rawTmpl = this[symbol].raw.template(value, opts) as any;
+         if (rawTmpl !== undefined) {
+            value = rawTmpl;
+         }
+      }
+
+      const tmpl = this[symbol].overrides?.template?.(value, opts) as any;
+      if (tmpl !== undefined) {
+         value = tmpl;
+      }
+      return value as Type;
    }
 
    validate(value: unknown, opts?: ValidationOptions): ValidationResult {
@@ -128,20 +171,29 @@ export class Schema<
 
    optional<T extends Schema>(
       this: T
-   ): T extends Schema<infer O>
-      ? Schema<
-           O,
-           T[typeof symbol]["static"] | undefined,
-           T[typeof symbol]["coerced"] | undefined
-        >
+   ): T extends Schema<infer O, infer S, infer C>
+      ? Simplify<Pick<T, Exclude<keyof T, keyof Schema>>> &
+           Schema<
+              O,
+              S extends unknown
+                 ? T[typeof symbol]["static"] | undefined
+                 : S | undefined,
+              C extends unknown
+                 ? T[typeof symbol]["coerced"] | undefined
+                 : C | undefined
+           >
       : never {
       this[symbol].optional = true;
       return this as any;
    }
 
+   isOptional(): boolean {
+      return this[symbol].optional;
+   }
+
    // cannot force type this one
    // otherwise ISchemaOptions must be widened to include any
-   toJSON(): object {
+   toJSON(): JSONSchemaDefinition {
       const { toJSON, ...rest } = this;
       return JSON.parse(JSON.stringify(rest));
    }

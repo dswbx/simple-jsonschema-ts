@@ -141,6 +141,8 @@ export function validate(
    } else {
       for (const [keyword, validator] of Object.entries(keywords)) {
          if (s[keyword] === undefined) continue;
+         // @todo: not entirely sure about this
+         if (value === undefined) continue;
          const result = validator(s, value, {
             ...ctx,
             errors: [],
