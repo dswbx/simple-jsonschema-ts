@@ -4,6 +4,8 @@ import {
    type ISchemaOptions,
    type StrictOptions,
    booleanSchema,
+   Node,
+   type WalkOptions,
 } from "../schema/schema";
 import type {
    Merge,
@@ -108,8 +110,8 @@ export class ObjectSchema<
          } as any,
          {
             template: (_value, opts) => {
-               const result: Record<string, unknown> = {};
                let value = isObject(_value) ? _value : {};
+               const result: Record<string, unknown> = { ...value };
 
                if (this.properties) {
                   for (const [key, property] of Object.entries(
@@ -118,7 +120,11 @@ export class ObjectSchema<
                      const v = getPath(value, key);
 
                      if (property.isOptional()) {
-                        if (opts?.withOptional !== true && v === undefined) {
+                        if (
+                           opts?.withOptional !== true &&
+                           v === undefined &&
+                           _value === undefined
+                        ) {
                            continue;
                         }
                      }
@@ -202,6 +208,19 @@ export class ObjectSchema<
          },
          O
       >;
+   }
+
+   override children(opts?: WalkOptions): Node[] {
+      const nodes: Node[] = [];
+
+      for (const [key, value] of Object.entries(this.properties)) {
+         const node = new Node(value, opts);
+         node.appendInstancePath([key]);
+         node.appendKeywordPath(["properties", key]);
+         nodes.push(node);
+      }
+
+      return nodes;
    }
 }
 

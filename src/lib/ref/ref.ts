@@ -1,5 +1,5 @@
 import { Schema, type ISchemaOptions } from "../schema/schema";
-import { type Static, type StaticCoerced } from "../static";
+import type { Static, StaticCoerced } from "../static";
 import type { CoercionOptions } from "../validation/coerce";
 import { isSchema } from "../utils";
 

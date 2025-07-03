@@ -162,6 +162,6 @@ describe("record", () => {
 
    test("template", () => {
       const schema = record(object({ name: string() }));
-      expect(schema.template()).toEqual({});
+      expect(schema.template({})).toEqual({});
    });
 });

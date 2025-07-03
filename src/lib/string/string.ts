@@ -13,10 +13,9 @@ export interface IStringOptions extends ISchemaOptions {
    format?: string;
 }
 
-export class StringSchema<const O extends IStringOptions> extends Schema<
-   O,
-   string
-> {
+export class StringSchema<
+   const O extends IStringOptions = IStringOptions
+> extends Schema<O, string> {
    override readonly type = "string";
 
    constructor(o?: O) {

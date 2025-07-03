@@ -1,4 +1,10 @@
-import { Schema, type ISchemaOptions, type StrictOptions } from "../schema";
+import {
+   Node,
+   Schema,
+   type ISchemaOptions,
+   type StrictOptions,
+   type WalkOptions,
+} from "../schema";
 import type { Simplify, Static, StaticCoerced } from "../static";
 import { isObject } from "../utils";
 
@@ -15,6 +21,7 @@ export class RecordSchema<
    AP extends Schema,
    O extends IRecordOptions = IRecordOptions
 > extends Schema<O, RecordStatic<AP>, RecordCoerced<AP>> {
+   override readonly type = "object";
    additionalProperties: AP;
 
    constructor(ap: AP, o?: O) {
@@ -32,6 +39,14 @@ export class RecordSchema<
          }
       );
       this.additionalProperties = ap;
+   }
+
+   override children(opts?: WalkOptions): Node[] {
+      const nodes: Node[] = [];
+      const node = new Node(this.additionalProperties, opts);
+      node.appendKeywordPath(["additionalProperties"]);
+      nodes.push(node);
+      return nodes;
    }
 }
 

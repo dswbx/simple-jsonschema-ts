@@ -56,7 +56,9 @@ export function isSchema(schema: unknown): schema is Schema & ISchemaOptions {
    return schema instanceof Schema;
 }
 
-export function isBooleanSchema(schema: unknown): schema is Schema {
+export function isBooleanSchema(
+   schema: unknown
+): schema is Schema & { toJSON: () => boolean } {
    return isSchema(schema) && typeof schema.toJSON() === "boolean";
 }
 

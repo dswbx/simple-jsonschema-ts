@@ -1,4 +1,4 @@
-import { Schema } from "../schema";
+import type { Schema } from "../schema";
 
 export const toJsonPointer = (path: (string | number)[] = [], prefix = "") => {
    return (

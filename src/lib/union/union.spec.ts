@@ -228,4 +228,63 @@ describe("union", () => {
       expect(schema.coerce("test,test2")).toEqual(["test", "test2"]);
       expect(schema.coerce(["test", "test2"])).toEqual(["test", "test2"]);
    });
+
+   test("walk", () => {
+      const schema = anyOf([string(), number()]);
+      expect(
+         [...schema.walk()].map((n) => ({
+            ...n,
+            schema: n.schema.constructor.name,
+         }))
+      ).toEqual([
+         {
+            schema: "UnionSchema",
+            instancePath: [],
+            keywordPath: [],
+            data: undefined,
+         },
+         {
+            schema: "StringSchema",
+            instancePath: [],
+            keywordPath: ["anyOf", 0],
+            data: undefined,
+         },
+         {
+            schema: "",
+            instancePath: [],
+            keywordPath: ["anyOf", 1],
+            data: undefined,
+         },
+      ]);
+
+      expect(
+         [
+            ...schema.walk({
+               data: 1,
+            }),
+         ].map((n) => ({
+            ...n,
+            schema: n.schema.constructor.name,
+         }))
+      ).toEqual([
+         {
+            schema: "UnionSchema",
+            instancePath: [],
+            keywordPath: [],
+            data: 1,
+         },
+         {
+            schema: "StringSchema",
+            instancePath: [],
+            keywordPath: ["anyOf", 0],
+            data: undefined,
+         },
+         {
+            schema: "",
+            instancePath: [],
+            keywordPath: ["anyOf", 1],
+            data: 1,
+         },
+      ]);
+   });
 });

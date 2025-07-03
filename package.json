@@ -3,7 +3,7 @@
    "main": "dist/lib/index.js",
    "module": "dist/lib/index.js",
    "types": "dist/lib/index.d.ts",
-   "version": "0.2.0-alpha.4",
+   "version": "0.2.0-alpha.5",
    "sideEffects": false,
    "typesVersions": {
       "*": {
@@ -98,5 +98,12 @@
       "openapi",
       "swagger",
       "typescript"
-   ]
+   ],
+   "madge": {
+      "detectiveOptions": {
+         "ts": {
+            "skipTypeImports": true
+         }
+      }
+   }
 }

@@ -7,9 +7,10 @@ import {
    isNull,
    isNumber,
    isObject,
-   isSchema,
    isString,
    normalize,
+   isSchema,
+   isBooleanSchema,
 } from "../utils";
 import { error, makeOpts, tmpOpts, valid } from "../utils/details";
 import type { ValidationOptions } from "./validate";
@@ -126,6 +127,9 @@ export const not = (
    value: unknown,
    opts: Opts = {}
 ) => {
+   // not spec relevant, but if no value given, it's always valid
+   if (value === undefined) return valid();
+
    if (isSchema(not) && not.validate(value, opts).valid) {
       return error(opts, "not", "Expected not to match", value);
    }
@@ -350,7 +354,22 @@ export const additionalProperties = (
       (key) => !props.includes(key) && !pattern.includes(key)
    );
    if (extra.length > 0) {
-      if (isSchema(additionalProperties)) {
+      if (isBooleanSchema(additionalProperties)) {
+         if (additionalProperties.toJSON() === true) {
+            return valid();
+         }
+         const extraObj = extra.reduce((acc, key) => {
+            acc[key] = value[key];
+            return acc;
+         }, {} as Record<string, unknown>);
+
+         return error(
+            opts,
+            "additionalProperties",
+            "Additional properties are not allowed",
+            extraObj
+         );
+      } else if (isSchema(additionalProperties)) {
          for (const key of extra) {
             const result = additionalProperties.validate(
                value[key],

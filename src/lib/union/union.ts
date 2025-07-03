@@ -1,8 +1,9 @@
 import {
-   createSchema,
+   Node,
    Schema,
    type ISchemaOptions,
    type StrictOptions,
+   type WalkOptions,
 } from "../schema/schema";
 import type { Merge, Static, StaticCoerced } from "../static";
 import { matches } from "../validation/keywords";
@@ -54,46 +55,67 @@ export type StaticUnionCoercedOptions<
 
 export interface IUnionOptions extends ISchemaOptions {}
 
-const union = (
-   type: "oneOf" | "anyOf",
-   schemas: Schema[],
-   options?: IUnionOptions
-) =>
-   createSchema(
-      undefined as any,
-      {
-         ...options,
-         [type]: schemas,
-      },
-      {
-         coerce: (value, opts) => {
-            const customCoerce = options?.coerce;
-            if (customCoerce !== undefined) {
-               return customCoerce.bind(this)(value, opts);
-            }
+const unionTypeSymbol = Symbol.for("unionType");
 
-            const m = matches(schemas, value, {
-               ignoreUnsupported: true,
-               resolver: opts?.resolver,
-               coerce: true,
-            });
+export class UnionSchema<T extends Schema[]> extends Schema<
+   IUnionOptions,
+   StaticUnion<T>,
+   StaticUnionCoercedOptions<IUnionOptions, T>
+> {
+   [unionTypeSymbol]: "oneOf" | "anyOf";
 
-            if (m.length > 0) {
-               return m[0]!.coerce(value, opts);
-            }
-            return value;
+   constructor(schemas: T, type: "oneOf" | "anyOf", options?: IUnionOptions) {
+      super(
+         {
+            ...options,
+            [type]: schemas,
          },
+         {
+            coerce: (value, opts) => {
+               const customCoerce = options?.coerce;
+               if (customCoerce !== undefined) {
+                  return customCoerce.bind(this)(value, opts);
+               }
+
+               const m = matches(schemas, value, {
+                  ignoreUnsupported: true,
+                  resolver: opts?.resolver,
+                  coerce: true,
+               });
+
+               if (m.length > 0) {
+                  return m[0]!.coerce(value, opts);
+               }
+               return value;
+            },
+         }
+      );
+      this[unionTypeSymbol] = type;
+   }
+
+   get schemas() {
+      return this[this[unionTypeSymbol]];
+   }
+
+   override children(opts?: WalkOptions): Node[] {
+      const nodes: Node[] = [];
+      for (const [i, schema] of this.schemas.entries()) {
+         const node = new Node(schema, opts);
+         node.appendKeywordPath([this[unionTypeSymbol], i]);
+         nodes.push(node);
       }
-   );
+      return nodes;
+   }
+}
 
 export const anyOf = <const T extends Schema[], const O extends IUnionOptions>(
    schemas: T,
    options?: StrictOptions<IUnionOptions, O>
 ): Schema<O, StaticUnion<T>, StaticUnionCoercedOptions<O, T>> &
-   Merge<O & { anyOf: T }> => union("anyOf", schemas, options) as any;
+   Merge<O & { anyOf: T }> => new UnionSchema(schemas, "anyOf", options) as any;
 
 export const oneOf = <const T extends Schema[], const O extends IUnionOptions>(
    schemas: T,
    options?: StrictOptions<IUnionOptions, O>
 ): Schema<O, StaticUnion<T>, StaticUnionCoercedOptions<O, T>> & O =>
-   union("oneOf", schemas, options) as any;
+   new UnionSchema(schemas, "oneOf", options) as any;

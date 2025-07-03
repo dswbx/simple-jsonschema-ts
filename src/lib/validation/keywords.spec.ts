@@ -1,11 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { booleanSchema } from "../schema";
+import { fromSchema } from "../schema/from-schema";
 import * as kw from "./keywords";
 import { number } from "../number/number";
 import { boolean } from "../boolean/boolean";
 import { string } from "../string/string";
 import { any } from "../schema/misc";
-import { fromSchema } from "../schema/from-schema";
-import { booleanSchema } from "../schema";
 
 describe("keywords", () => {
    describe("base", () => {

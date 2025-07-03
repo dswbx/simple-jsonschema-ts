@@ -1,7 +1,9 @@
 import {
+   Node,
    Schema,
    type ISchemaOptions,
    type StrictOptions,
+   type WalkOptions,
 } from "../schema/schema";
 import type { Static, StaticCoerced } from "../static";
 import { isSchema } from "../utils";
@@ -59,6 +61,18 @@ export class ArraySchema<
          }
       );
       this.items = items;
+   }
+
+   override children(opts?: WalkOptions): Node[] {
+      const nodes: Node[] = [];
+
+      if (this.items) {
+         const node = new Node(this.items, opts);
+         node.appendKeywordPath(["items"]);
+         nodes.push(node);
+      }
+
+      return nodes;
    }
 }
 

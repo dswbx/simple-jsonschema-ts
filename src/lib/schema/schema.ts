@@ -1,6 +1,7 @@
 import type { OptionallyOptional, Simplify, StaticConstEnum } from "../static";
 import type { JSONSchemaDefinition } from "../types";
 import { error, valid } from "../utils/details";
+import { getPath } from "../utils/path";
 import { coerce, type CoercionOptions } from "../validation/coerce";
 import { Resolver } from "../validation/resolver";
 import {
@@ -191,11 +192,86 @@ export class Schema<
       return this[symbol].optional;
    }
 
+   children(opts?: WalkOptions): Node[] {
+      return [];
+   }
+
+   /**
+    * Depth-first walk (pre-order).
+    * Yields the node together with the JSON-pointer-like path so that
+    * callers know where they are.
+    */
+   *walk({
+      instancePath = [],
+      keywordPath = [],
+      ...opts
+   }: WalkOptions = {}): Generator<Node<Schema>> {
+      if (opts.includeSelf !== false) {
+         yield new Node(this, { instancePath, keywordPath, ...opts });
+      }
+
+      for (const child of this.children(opts)) {
+         yield* child.schema.walk({
+            ...opts,
+            instancePath: [...instancePath, ...child.instancePath],
+            keywordPath: [...keywordPath, ...child.keywordPath],
+         });
+      }
+   }
+
+   /**
+    * Makes every schema iterable so you can use `for (const n of schema)`
+    */
+   *[Symbol.iterator](opts?: WalkOptions): Generator<Node> {
+      for (const node of this.walk(opts)) yield node;
+   }
+
    // cannot force type this one
    // otherwise ISchemaOptions must be widened to include any
    toJSON(): JSONSchemaDefinition {
       const { toJSON, ...rest } = this;
       return JSON.parse(JSON.stringify(rest));
+   }
+}
+
+export type WalkOptions = {
+   instancePath?: (string | number)[];
+   keywordPath?: (string | number)[];
+   includeSelf?: boolean;
+   data?: any;
+};
+
+export class Node<T extends Schema = Schema> {
+   public instancePath: (string | number)[];
+   public keywordPath: (string | number)[];
+   public data?: any;
+
+   constructor(public readonly schema: T, opts: WalkOptions = {}) {
+      this.instancePath = opts.instancePath || [];
+      this.keywordPath = opts.keywordPath || [];
+
+      try {
+         const data = getPath(opts.data, this.instancePath);
+         if (schema.validate(data).valid) {
+            this.data = data;
+         }
+      } catch (e) {}
+   }
+
+   appendInstancePath(path: (string | number)[]) {
+      this.instancePath = [...this.instancePath, ...path];
+      return this;
+   }
+
+   appendKeywordPath(path: (string | number)[]) {
+      this.keywordPath = [...this.keywordPath, ...path];
+      return this;
+   }
+
+   setData(data: any) {
+      console.log("setData", data);
+      this.data = structuredClone(data);
+      return this;
    }
 }
 
@@ -218,7 +294,7 @@ export function booleanSchema<B extends boolean>(bool: B) {
          return bool as any;
       }
       override validate(value: unknown, opts?: ValidationOptions) {
-         return bool ? valid() : error(opts, "", "Always fails");
+         return bool ? valid() : error(opts, "", "Always fails", value);
       }
    })();
 }

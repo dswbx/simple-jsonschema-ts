@@ -106,9 +106,7 @@ describe("number", () => {
          expect(schema.validate("1").errors[0]?.error).toEqual(
             "Expected number"
          );
-         expect(schema.validate(undefined).errors[0]?.error).toEqual(
-            "Expected number"
-         );
+         expect(schema.validate(undefined).valid).toBe(true);
          expect(schema.validate(null).errors[0]?.error).toEqual(
             "Expected number"
          );
@@ -183,7 +181,7 @@ describe("number", () => {
    });
 
    test("template", () => {
-      expect(number().template()).toEqual(0);
+      expect(number().template()).toEqual(undefined as any);
       expect(number({ default: 1 }).template()).toEqual(1);
       expect(number({ const: 1 }).template()).toEqual(1);
    });

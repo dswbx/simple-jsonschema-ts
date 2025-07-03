@@ -5,7 +5,7 @@ import { assertJson } from "../lib/assert";
 import { type CoercionOptions } from "../lib";
 import { isObject } from "../lib/utils";
 import * as tb from "@sinclair/typebox";
-import { Type } from "@sinclair/typebox";
+import { Type, Static as TbStatic } from "@sinclair/typebox";
 import { Default } from "@sinclair/typebox/value";
 
 describe("Field", () => {
@@ -83,10 +83,8 @@ describe("Field", () => {
               )[];
       }>();
 
-      expect(baseFieldConfig.template()).toEqual({});
+      expect(baseFieldConfig.template()).toEqual(undefined as any);
       expect(baseFieldConfig.template({}, { withOptional: true })).toEqual({
-         label: "",
-         description: "",
          required: false,
          virtual: false,
          fillable: true,
@@ -160,6 +158,41 @@ describe("Field", () => {
                  | "submit"
               )[];
       }>();
+   });
+
+   test("TextField", () => {
+      const textFieldConfigSchema = s
+         .strictObject({
+            default_value: s.string(),
+            minLength: s.number(),
+            maxLength: s.number(),
+            pattern: s.string(),
+            html_config: s.object({
+               element: s.string({ default: "input" }),
+               props: s.record(
+                  s.anyOf([
+                     s.string({ title: "String" }),
+                     s.number({ title: "Number" }),
+                  ])
+               ),
+            }),
+         })
+         .partial();
+
+      /* console.log("template", textFieldConfigSchema.template());
+      console.log(
+         "template",
+         textFieldConfigSchema.template({}, { withOptional: true })
+      ); */
+   });
+
+   test.skip("walk", () => {
+      console.log(
+         [...baseFieldConfig.walk()].map((n) => ({
+            ...n,
+            schema: n.schema.constructor.name,
+         }))
+      );
    });
 });
 
@@ -641,6 +674,34 @@ describe("misc", () => {
          })
       ); */
    });
+
+   test("schema object additional properties", () => {
+      const schema = s.strictObject({
+         s: s.strictObject(
+            {
+               a: s.string({ default: "b" }),
+               b: s.strictObject(
+                  {
+                     c: s.string({ default: "d" }),
+                     e: s.string({ default: "f" }),
+                  },
+                  { default: {} }
+               ),
+            },
+            { default: {} }
+         ),
+      });
+
+      console.log("template", schema.template({ s: { a: "1", c: "2" } }));
+
+      console.log(
+         JSON.stringify(
+            schema.validate(schema.template({ s: { c: 1 } })),
+            null,
+            2
+         )
+      );
+   });
 });
 
 describe("schemas", () => {
@@ -736,34 +797,6 @@ describe("schemas", () => {
                "Accept",
             ],
          },
-      });
-   });
-
-   test.only("Field", () => {
-      test.only("TextField", () => {
-         const textFieldConfigSchema = s
-            .strictObject({
-               default_value: s.string(),
-               minLength: s.number(),
-               maxLength: s.number(),
-               pattern: s.string(),
-               html_config: s.object({
-                  element: s.string({ default: "input" }),
-                  props: s.record(
-                     s.anyOf([
-                        s.string({ title: "String" }),
-                        s.number({ title: "Number" }),
-                     ])
-                  ),
-               }),
-            })
-            .partial();
-
-         console.log("template", textFieldConfigSchema.template());
-         console.log(
-            "template",
-            textFieldConfigSchema.template({}, { withOptional: true })
-         );
       });
    });
 });
