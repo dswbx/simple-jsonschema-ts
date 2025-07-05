@@ -1,11 +1,6 @@
-import type { TSchema } from "../schema";
 import { InvariantError } from "../errors";
-import { $kind, $raw } from "../symbols";
-import type {
-   BaseJSONSchema,
-   PropertyName,
-   JSONSchemaDefinition,
-} from "../types";
+import type { PropertyName, JSONSchemaDefinition } from "../types";
+import { Schema, type ISchemaOptions } from "../schema/schema";
 
 export function isNull(value: unknown): value is null {
    return value === null;
@@ -49,20 +44,22 @@ export function isNonBooleanRawSchema(
    return typeof schema !== "boolean";
 }
 
-export function isTypeSchema(schema: unknown): schema is BaseJSONSchema {
+export function isTypeSchema(
+   schema: unknown
+): schema is { type: string | string[] } {
    return (
       schema !== undefined && isNonBooleanRawSchema(schema) && "type" in schema
    );
 }
 
-export function isSchema(schema: unknown): schema is TSchema {
-   return isObject(schema) && $kind in schema;
+export function isSchema(schema: unknown): schema is Schema & ISchemaOptions {
+   return schema instanceof Schema;
 }
 
-export function isBooleanSchema(schema: unknown): schema is TSchema & {
-   [$raw]: boolean;
-} {
-   return isSchema(schema) && isBoolean(schema[$raw]);
+export function isBooleanSchema(
+   schema: unknown
+): schema is Schema & { toJSON: () => boolean } {
+   return isSchema(schema) && typeof schema.toJSON() === "boolean";
 }
 
 export function matchesPattern(pattern: string, value: string): boolean {

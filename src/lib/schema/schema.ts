@@ -1,54 +1,21 @@
-import { $kind, $optional, $raw } from "../symbols";
-import type { Static, StaticCoerced, StaticConstEnum } from "../static";
-import { isBoolean, isObject } from "../utils";
-import { validate } from "../validation/validate";
-import type {
-   ValidationResult,
-   ValidationOptions,
-} from "../validation/validate";
+import type { OptionallyOptional, Simplify, StaticConstEnum } from "../static";
+import type { JSONSchemaDefinition } from "../types";
 import { error, valid } from "../utils/details";
+import { getPath } from "../utils/path";
 import { coerce, type CoercionOptions } from "../validation/coerce";
 import { Resolver } from "../validation/resolver";
-
-export type PropertyName = string;
-export type JSONSchemaTypeName =
-   | "string"
-   | "number"
-   | "integer"
-   | "boolean"
-   | "object"
-   | "array"
-   | "null";
+import {
+   validate,
+   type ValidationOptions,
+   type ValidationResult,
+} from "../validation/validate";
 
 export type TSchemaTemplateOptions = {
    withOptional?: boolean;
+   withExtendedOptional?: boolean;
 };
 
-export interface TSchemaFn {
-   validate: (value: unknown, opts?: ValidationOptions) => ValidationResult;
-   template: (opts?: TSchemaTemplateOptions) => unknown;
-   coerce: (value: unknown, opts?: CoercionOptions) => unknown;
-   toJSON: () => object;
-}
-
-export interface TAnySchema<Type = unknown> {
-   optional: (() => TOptional) | never;
-   coerce: (value: unknown) => Type;
-   static: Type;
-   [$kind]: string;
-   [$raw]: any;
-   [$optional]?: boolean | never;
-}
-
-export interface TOptional<Schema extends TSchema = TSchema> extends TSchema {
-   optional: never;
-   [$optional]: true;
-   static: Static<Schema> | undefined;
-   coerce: (v: unknown) => StaticCoerced<Schema> | undefined;
-}
-
-export interface TJsonSchemaBaseOptions {
-   // basic/meta
+export interface IBaseSchemaOptions {
    $id?: string;
    $ref?: string;
    $schema?: string;
@@ -63,185 +30,271 @@ export interface TJsonSchemaBaseOptions {
    const?: any;
 }
 
-export interface TCustomType
-   extends TJsonSchemaBaseOptions,
-      Partial<TSchemaFn> {}
-
-export interface TSchemaBase extends TJsonSchemaBaseOptions {
-   $defs?: { [key in PropertyName]: TSchemaBase };
-
-   // data types & common
-   type?: JSONSchemaTypeName | JSONSchemaTypeName[];
-
-   // string
-   maxLength?: number;
-   minLength?: number;
-   pattern?: string;
-   format?: string;
-
-   // number
-   multipleOf?: number;
-   maximum?: number;
-   exclusiveMaximum?: number;
-   minimum?: number;
-   exclusiveMinimum?: number;
-
-   // array
-   items?: TSchemaBase | boolean;
-   uniqueItems?: boolean;
-   maxItems?: number;
-   minItems?: number;
-   contains?: TSchemaBase;
-   minContains?: number;
-   maxContains?: number;
-   prefixItems?: TSchemaBase[];
-
-   // object
-   properties?: { [key in PropertyName]: TSchemaBase };
-   patternProperties?: { [key: string]: TSchemaBase };
-   additionalProperties?: TSchemaBase | boolean;
-   required?: PropertyName[];
-   minProperties?: number;
-   maxProperties?: number;
-   propertyNames?: TSchemaBase;
-   dependentRequired?: { [key in PropertyName]: PropertyName[] };
-   dependentSchemas?: { [key in PropertyName]: TSchemaBase };
-
-   // Combining schemas
-   allOf?: TSchemaBase[];
-   anyOf?: TSchemaBase[];
-   oneOf?: TSchemaBase[];
-   not?: TSchemaBase;
-   if?: TSchemaBase;
-   then?: TSchemaBase;
-   else?: TSchemaBase;
+export interface ISchemaFn {
+   validate?: (value: unknown, opts?: ValidationOptions) => ValidationResult;
+   coerce?: (value: unknown, opts?: CoercionOptions) => unknown;
+   template?: (value?: unknown, opts?: TSchemaTemplateOptions) => unknown;
 }
 
-export interface TSchema<Type = unknown> extends TSchemaBase, TSchemaFn {
-   optional: () => TOptional<this>;
-   coerce: (value: unknown, opts?: CoercionOptions) => Type;
-   static: Type;
-   [$kind]: string;
-   [$raw]: any;
-   //[$optional]: boolean;
+export interface ISchemaOptions
+   extends IBaseSchemaOptions,
+      Partial<ISchemaFn> {}
 
-   // overrides
-   $defs?: { [key in PropertyName]: TSchema };
-   items?: TSchema;
-   contains?: TSchema;
-   prefixItems?: TSchema[];
-   properties?: { [key in PropertyName]: TSchema };
-   patternProperties?: { [key: string]: TSchema };
-   additionalProperties?: TSchema;
-   propertyNames?: TSchema;
-   dependentSchemas?: { [key in PropertyName]: TSchema };
-   allOf?: TSchema[];
-   anyOf?: TSchema[];
-   oneOf?: TSchema[];
-   not?: TSchema;
-   if?: TSchema;
-   then?: TSchema;
-   else?: TSchema;
+export type StrictOptions<S extends ISchemaOptions, O extends S> = O & {
+   [K in Exclude<keyof O, keyof S>]: never;
+};
+
+export const symbol = Symbol.for("schema");
+
+export interface IAnySchema extends IBaseSchemaOptions {
+   [symbol]: any;
+   toJSON(): object;
 }
 
-export type TCustomSchema<
-   Options extends TSchemaBase,
-   Fallback = unknown
-> = TSchema & {
-   static: StaticConstEnum<Options, Fallback>;
-   optional: () => TOptional<TCustomSchema<Options, Fallback>>;
-   coerce: (value: unknown) => StaticConstEnum<Options, Fallback>;
-} & {
-   [K in keyof Options]: Options[K];
-} & TSchemaFn;
-
-export interface TSchemaInOut<Type, TypeCoerced>
-   extends Omit<TSchema<Type>, "coerce"> {
-   coerce: (value: unknown, opts?: CoercionOptions) => TypeCoerced;
-}
-
-export const schema = <
-   const Type = unknown,
-   const S extends Partial<TSchema> | boolean = Partial<TSchema>,
-   Static = S extends { const?: unknown; enum?: unknown }
-      ? StaticConstEnum<S, Type>
-      : Type
->(
-   _s: S = {} as S,
-   kind: string = "any"
-): TSchema<Static> => {
-   const s = (isObject(_s) ? _s : {}) as unknown as TSchema;
-   // @ts-ignore
-   const raw = isBoolean(_s) ? _s : $raw in _s ? _s[$raw] : undefined;
-
-   const s2 = {
-      ...s,
-      [$kind]: kind,
-      [$raw]: raw,
-      optional: function (this: TSchema) {
-         return schema(
-            {
-               ...this,
-               // prevent treating schema validate as custom validate
-               validate: undefined,
-               [$raw]: raw,
-               [$optional]: true,
-            },
-            kind
-         );
-      },
-      template: function (opts: TSchemaTemplateOptions = {}) {
-         // @todo: handle optional here?
-         if (s.const !== undefined) return s.const;
-         if (s.default !== undefined) return s.default;
-         if (s.enum !== undefined) return s.enum[0];
-         if (s.template) return s.template(opts);
-         return undefined;
-      },
-      toJSON: function () {
-         const raw = this[$raw];
-         if (isBoolean(raw)) return raw;
-         return JSON.parse(JSON.stringify(s));
-      },
+export class Schema<
+   Options extends ISchemaOptions = ISchemaOptions,
+   Type = unknown,
+   Coerced = Type
+> implements IBaseSchemaOptions
+{
+   [symbol]!: {
+      raw?: Options | any;
+      static: StaticConstEnum<Options, Type>;
+      coerced: Options extends {
+         coerce: (...args: any[]) => infer C;
+      }
+         ? OptionallyOptional<Coerced, C>
+         : OptionallyOptional<Coerced, StaticConstEnum<Options, Coerced>>;
+      optional: boolean;
+      overrides?: ISchemaFn;
    };
 
-   //
-   s2.coerce = function (_value: unknown, opts: CoercionOptions = {}) {
-      const ctx: Required<CoercionOptions> = {
-         ...opts,
-         resolver: opts.resolver || new Resolver(s2 as any),
-         depth: opts.depth ? opts.depth + 1 : 0,
+   readonly type: string | undefined;
+   $id?: string;
+   $ref?: string;
+   $schema?: string;
+   title?: string;
+   description?: string;
+   readOnly?: boolean;
+   writeOnly?: boolean;
+   $comment?: string;
+   examples?: any[];
+   //const?: any;
+
+   constructor(o?: Options, overrides?: ISchemaFn) {
+      // just prevent overriding properties
+      const { type, validate, coerce, template, ...rest } = (o || {}) as any;
+      // make sure type is the first property
+      Object.assign(this, { type }, rest);
+
+      // @ts-expect-error shouldn't trash console
+      this[symbol] = {
+         raw: o,
+         optional: false,
+         overrides,
       };
+   }
+
+   template(_value?: unknown, opts?: TSchemaTemplateOptions): Type {
+      const s = this as ISchemaOptions;
       let value = _value;
 
-      if ("coerce" in s && s.coerce !== undefined) {
-         return s.coerce(value, ctx);
-      }
-
-      // @todo: what about default, const, enum?
-      return coerce(s2 as any, value, ctx);
-   };
-
-   // important to split here, to get all schema methods (required for isSchema check)
-   s2.validate = function (value: unknown, opts: ValidationOptions = {}) {
-      if (isBoolean(raw)) {
-         return raw === false ? error(opts, "", "Always fails") : valid();
-      }
-
-      // run custom validate if present
-      let errors = opts.errors || [];
-      if ("validate" in s && s.validate !== undefined) {
-         const result = s.validate(value, opts);
-         if (!result.valid) {
-            errors = [...errors, ...result.errors];
+      // if const is defined, ignore initial
+      if (s.const !== undefined) {
+         value = s.const;
+      } else if (!value) {
+         // if no value, use enum or default
+         if (s.default !== undefined) value = s.default;
+         if (opts?.withExtendedOptional && s.enum !== undefined) {
+            value = s.enum[0] as any;
          }
       }
 
-      return validate(s2 as any, value, {
-         ...opts,
-         errors,
-      });
-   };
+      if (
+         opts?.withOptional !== true &&
+         value === undefined &&
+         this.isOptional()
+      ) {
+         return value as any;
+      }
 
-   return s2 as any;
+      if (this[symbol].raw?.template) {
+         const rawTmpl = this[symbol].raw.template(value, opts) as any;
+         if (rawTmpl !== undefined) {
+            value = rawTmpl;
+         }
+      }
+
+      const tmpl = this[symbol].overrides?.template?.(value, opts) as any;
+      if (tmpl !== undefined) {
+         value = tmpl;
+      }
+      return value as Type;
+   }
+
+   validate(value: unknown, opts?: ValidationOptions): ValidationResult {
+      const ctx: Required<ValidationOptions> = {
+         keywordPath: opts?.keywordPath || [],
+         instancePath: opts?.instancePath || [],
+         coerce: opts?.coerce || false,
+         errors: opts?.errors || [],
+         shortCircuit: opts?.shortCircuit || false,
+         ignoreUnsupported: opts?.ignoreUnsupported || false,
+         resolver: opts?.resolver || new Resolver(this),
+         depth: opts?.depth ? opts.depth + 1 : 0,
+      };
+
+      const customValidate = this[symbol].raw?.validate;
+      if (customValidate !== undefined) {
+         const result = customValidate(value, ctx);
+         if (!result.valid) {
+            return result;
+         }
+      }
+
+      return validate(this, value, ctx);
+   }
+
+   coerce(value: unknown, opts?: CoercionOptions) {
+      const ctx: Required<CoercionOptions> = {
+         ...opts,
+         resolver: opts?.resolver || new Resolver(this),
+         depth: opts?.depth ? opts.depth + 1 : 0,
+      };
+
+      const customCoerce = this[symbol].raw?.coerce;
+      if (customCoerce !== undefined) {
+         return customCoerce(value, ctx) as any;
+      }
+      const coerced = this[symbol].overrides?.coerce?.(value, ctx) ?? value;
+      return coerce(this, coerced, ctx) as any;
+   }
+
+   optional<T extends Schema>(
+      this: T
+   ): T extends Schema<infer O, infer S, infer C>
+      ? Simplify<Pick<T, Exclude<keyof T, keyof Schema>>> &
+           Schema<
+              O,
+              S extends unknown
+                 ? T[typeof symbol]["static"] | undefined
+                 : S | undefined,
+              C extends unknown
+                 ? T[typeof symbol]["coerced"] | undefined
+                 : C | undefined
+           >
+      : never {
+      this[symbol].optional = true;
+      return this as any;
+   }
+
+   isOptional(): boolean {
+      return this[symbol].optional;
+   }
+
+   children(opts?: WalkOptions): Node[] {
+      return [];
+   }
+
+   /**
+    * Depth-first walk (pre-order).
+    * Yields the node together with the JSON-pointer-like path so that
+    * callers know where they are.
+    */
+   *walk({
+      instancePath = [],
+      keywordPath = [],
+      ...opts
+   }: WalkOptions = {}): Generator<Node<Schema>> {
+      if (opts.includeSelf !== false) {
+         yield new Node(this, { instancePath, keywordPath, ...opts });
+      }
+
+      for (const child of this.children(opts)) {
+         yield* child.schema.walk({
+            ...opts,
+            instancePath: [...instancePath, ...child.instancePath],
+            keywordPath: [...keywordPath, ...child.keywordPath],
+         });
+      }
+   }
+
+   /**
+    * Makes every schema iterable so you can use `for (const n of schema)`
+    */
+   *[Symbol.iterator](opts?: WalkOptions): Generator<Node> {
+      for (const node of this.walk(opts)) yield node;
+   }
+
+   // cannot force type this one
+   // otherwise ISchemaOptions must be widened to include any
+   toJSON(): JSONSchemaDefinition {
+      const { toJSON, ...rest } = this;
+      return JSON.parse(JSON.stringify(rest));
+   }
+}
+
+export type WalkOptions = {
+   instancePath?: (string | number)[];
+   keywordPath?: (string | number)[];
+   includeSelf?: boolean;
+   data?: any;
 };
+
+export class Node<T extends Schema = Schema> {
+   public instancePath: (string | number)[];
+   public keywordPath: (string | number)[];
+   public data?: any;
+
+   constructor(public readonly schema: T, opts: WalkOptions = {}) {
+      this.instancePath = opts.instancePath || [];
+      this.keywordPath = opts.keywordPath || [];
+
+      try {
+         const data = getPath(opts.data, this.instancePath);
+         if (schema.validate(data).valid) {
+            this.data = data;
+         }
+      } catch (e) {}
+   }
+
+   appendInstancePath(path: (string | number)[]) {
+      this.instancePath = [...this.instancePath, ...path];
+      return this;
+   }
+
+   appendKeywordPath(path: (string | number)[]) {
+      this.keywordPath = [...this.keywordPath, ...path];
+      return this;
+   }
+
+   setData(data: any) {
+      console.log("setData", data);
+      this.data = structuredClone(data);
+      return this;
+   }
+}
+
+export function createSchema<
+   O extends ISchemaOptions,
+   Type = unknown,
+   Coerced = Type
+>(type: string, o?: O, overrides?: ISchemaFn): Schema<O, Type, Coerced> & O {
+   return new (class extends Schema<O, Type, Coerced> {
+      override readonly type = type;
+   })(o, overrides) as any;
+}
+
+export function booleanSchema<B extends boolean>(bool: B) {
+   return new (class extends Schema<
+      ISchemaOptions,
+      B extends true ? unknown : never
+   > {
+      override toJSON() {
+         return bool as any;
+      }
+      override validate(value: unknown, opts?: ValidationOptions) {
+         return bool ? valid() : error(opts, "", "Always fails", value);
+      }
+   })();
+}

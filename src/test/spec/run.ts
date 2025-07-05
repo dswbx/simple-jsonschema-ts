@@ -143,10 +143,7 @@ for (const testSuite of tests) {
          }
       } catch (e) {
          console.error(" ->", item.description);
-         explain &&
-            console.log({
-               schema: item.schema,
-            });
+         explain && console.log("schema", JSON.stringify(item.schema, null, 2));
 
          if (abort_early) {
             printStats();

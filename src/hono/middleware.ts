@@ -6,8 +6,7 @@ import type {
    ValidationTargets,
 } from "hono";
 import { validator as honoValidator } from "hono/validator";
-import type { Static, StaticCoerced } from "../lib";
-import type { TAnySchema } from "../lib/schema";
+import type { Static, StaticCoerced, Schema } from "jsonv-ts";
 import { $symbol } from "./shared";
 
 export type Options = {
@@ -32,22 +31,19 @@ export type Hook<T, E extends Env, P extends string> = (
 ) => Response | Promise<Response> | void;
 
 export const validator = <
-   // @todo: somehow hono prevents the usage of TSchema
-   Schema extends TAnySchema,
+   S extends Schema,
    Target extends keyof ValidationTargets,
    E extends Env,
    P extends string,
    Opts extends Options = Options,
-   Out = Opts extends { coerce: false }
-      ? Static<Schema>
-      : StaticCoerced<Schema>,
+   Out = Opts extends { coerce: false } ? Static<S> : StaticCoerced<S>,
    I extends Input = {
-      in: { [K in Target]: Static<Schema> };
+      in: { [K in Target]: Static<S> };
       out: { [K in Target]: Out };
    }
 >(
    target: Target,
-   schema: Schema,
+   schema: S,
    options?: Opts,
    hook?: Hook<Out, E, P>
 ): MiddlewareHandler<E, P, I> => {

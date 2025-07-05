@@ -1,11 +1,20 @@
 import { expectTypeOf } from "expect-type";
 import type { Static, StaticCoerced } from "../static";
-import { object, partialObject, record, strictObject } from "./object";
-import { type TSchema } from "../schema";
+import {
+   object,
+   type ObjectDefaults,
+   ObjectSchema,
+   partialObject,
+   strictObject,
+} from "./object";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
-import { string, number, boolean, array, anyOf, any } from "../";
-import { $kind } from "../symbols";
+import { string } from "../string/string";
+import { number } from "../number/number";
+import { boolean } from "../boolean/boolean";
+import { array } from "../array/array";
+import { any } from "../schema/misc";
+import type { Schema, symbol } from "../schema/schema";
 
 describe("object", () => {
    test("basic", () => {
@@ -21,7 +30,7 @@ describe("object", () => {
          type: string({ const: "ref/resource" }),
          uri: string().optional(),
       });
-      type OneStatic = (typeof one)["static"];
+      type OneStatic = (typeof one)[typeof symbol]["static"];
       //   ^?
       expectTypeOf<OneStatic>().toEqualTypeOf<{
          type: "ref/resource";
@@ -32,6 +41,13 @@ describe("object", () => {
       type OneInferred = Static<typeof one>;
       //   ^?
       expectTypeOf<OneInferred>().toEqualTypeOf<{
+         type: "ref/resource";
+         uri?: string;
+         [key: string]: unknown;
+      }>();
+
+      type OneCoerced = StaticCoerced<typeof one>;
+      expectTypeOf<OneCoerced>().toEqualTypeOf<{
          type: "ref/resource";
          uri?: string;
          [key: string]: unknown;
@@ -61,6 +77,52 @@ describe("object", () => {
             additionalProperties: false,
          });
       }
+
+      {
+         // ensure it's all schemas
+         expect(() =>
+            object({
+               name: string(),
+               age: number(),
+               // @ts-expect-error
+               invalid: 1,
+            })
+         ).toThrow();
+      }
+
+      {
+         type T = Static<ObjectSchema>;
+         //   ^?
+         expectTypeOf<T>().toEqualTypeOf<{
+            [key: string]: unknown;
+            [key: number]: unknown;
+         }>();
+
+         /* type C = StaticCoerced<ObjectSchema>;
+         //   ^?
+         expectTypeOf<C>().toEqualTypeOf<{
+            [key: string]: unknown;
+         }>(); */
+      }
+   });
+   test("with properties", () => {
+      const name = string();
+      const schema = object({
+         name: string(),
+         age: number({ minimum: 1 }).optional(),
+      });
+      type Inferred = Static<typeof schema>;
+      expectTypeOf<Inferred>().toEqualTypeOf<{
+         name: string;
+         age?: number;
+         [key: string]: unknown;
+      }>();
+      type Coerced = StaticCoerced<typeof schema>;
+      expectTypeOf<Coerced>().toEqualTypeOf<{
+         name: string;
+         age?: number;
+         [key: string]: unknown;
+      }>();
    });
 
    test("with properties", () => {
@@ -99,10 +161,10 @@ describe("object", () => {
    });
 
    test("strictObject", () => {
-      const schema = strictObject({
-         name: string(),
+      const schema = object({
+         name: string({ maxLength: 1 }),
          age: number(),
-      });
+      }).strict();
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<{
          name: string;
@@ -112,19 +174,42 @@ describe("object", () => {
       assertJson(schema, {
          type: "object",
          properties: {
-            name: { type: "string" },
+            name: { type: "string", maxLength: 1 },
             age: { type: "number" },
          },
          required: ["name", "age"],
          additionalProperties: false,
       });
+
+      {
+         // using strictObject
+         const schema = strictObject({
+            name: string({ maxLength: 1 }),
+            age: number(),
+         });
+         type Inferred = Static<typeof schema>;
+         expectTypeOf<Inferred>().toEqualTypeOf<{
+            name: string;
+            age: number;
+         }>();
+
+         assertJson(schema, {
+            type: "object",
+            properties: {
+               name: { type: "string", maxLength: 1 },
+               age: { type: "number" },
+            },
+            required: ["name", "age"],
+            additionalProperties: false,
+         });
+      }
    });
 
    test("partialObject", () => {
-      const schema = partialObject({
+      const schema = object({
          name: string(),
          age: number(),
-      });
+      }).partial();
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<{
          name?: string;
@@ -142,13 +227,13 @@ describe("object", () => {
 
       {
          // partialObject with additionalProperties false
-         const schema = partialObject(
+         const schema = object(
             {
                name: string(),
                age: number(),
             },
             { additionalProperties: false }
-         );
+         ).partial();
          type Inferred = Static<typeof schema>;
          expectTypeOf<Inferred>().toEqualTypeOf<{
             name?: string;
@@ -161,6 +246,153 @@ describe("object", () => {
                age: { type: "number" },
             },
             additionalProperties: false,
+         });
+
+         type Coerced = StaticCoerced<typeof schema>;
+         type C =
+            (typeof schema)["properties"]["name"][typeof symbol]["coerced"];
+
+         expectTypeOf<Coerced>().toEqualTypeOf<{
+            name?: string;
+            age?: number;
+         }>();
+      }
+
+      {
+         const schema = object({
+            name: string({ const: "what" }),
+         });
+         type Inferred = Static<typeof schema>;
+         expectTypeOf<Inferred>().toEqualTypeOf<{
+            [key: string]: unknown;
+            name: "what";
+         }>();
+         type Coerced = StaticCoerced<typeof schema>;
+         expectTypeOf<Coerced>().toEqualTypeOf<{
+            name: "what";
+            [key: string]: unknown;
+         }>();
+      }
+
+      {
+         const schema = object({
+            name: string({ coerce: (v) => v as "what" }),
+            age: number(),
+         });
+         type Inferred = Static<typeof schema>;
+         expectTypeOf<Inferred>().toEqualTypeOf<{
+            name: string;
+            age: number;
+            [key: string]: unknown;
+         }>();
+         type Coerced = StaticCoerced<typeof schema>;
+         expectTypeOf<Coerced>().toEqualTypeOf<{
+            name: "what";
+            age: number;
+            [key: string]: unknown;
+         }>();
+      }
+
+      {
+         const schema = object({
+            name: string({ coerce: (v) => v as "what" }).optional(),
+            age: number(),
+         });
+         type Inferred2 = (typeof schema)[typeof symbol]["static"];
+         expectTypeOf<Inferred2>().toEqualTypeOf<{
+            name?: string;
+            age: number;
+            [key: string]: unknown;
+         }>();
+         type Inferred = Static<typeof schema>;
+         expectTypeOf<Inferred>().toEqualTypeOf<{
+            name?: string;
+            age: number;
+            [key: string]: unknown;
+         }>();
+         type Coerced2 = (typeof schema)[typeof symbol]["coerced"];
+         expectTypeOf<Coerced2>().toEqualTypeOf<{
+            name?: "what";
+            age: number;
+            [key: string]: unknown;
+         }>();
+         type Coerced = StaticCoerced<typeof schema>;
+         expectTypeOf<Coerced>().toEqualTypeOf<{
+            name?: "what";
+            age: number;
+            [key: string]: unknown;
+         }>();
+      }
+
+      {
+         // partial with coerce
+         const schema = object({
+            name: string({ coerce: (v) => v as string }),
+            age: number(),
+         }).partial();
+         type Inferred = Static<typeof schema>;
+         expectTypeOf<Inferred>().toEqualTypeOf<{
+            name?: string;
+            age?: number;
+            [key: string]: unknown;
+         }>();
+         type Coerced2 = (typeof schema)[typeof symbol]["coerced"];
+         expectTypeOf<Coerced2>().toEqualTypeOf<{
+            name?: string;
+            age?: number;
+            [key: string]: unknown;
+         }>();
+         type Coerced = StaticCoerced<typeof schema>;
+         expectTypeOf<Coerced>().toEqualTypeOf<{
+            name?: string;
+            age?: number;
+            [key: string]: unknown;
+         }>();
+      }
+
+      {
+         // partial object with strict
+         const schema = object({
+            name: string(),
+            age: number(),
+         })
+            .partial()
+            .strict();
+         type Inferred = Static<typeof schema>;
+         expectTypeOf<Inferred>().toEqualTypeOf<{
+            name?: string;
+            age?: number;
+         }>();
+         assertJson(schema, {
+            type: "object",
+            properties: {
+               name: { type: "string" },
+               age: { type: "number" },
+            },
+            additionalProperties: false,
+         });
+      }
+
+      {
+         // partial object with optional props
+         const schema = object({
+            name: string(),
+            // expect this to be non-influential
+            age: number().optional(),
+         }).partial();
+
+         type Inferred = Static<typeof schema>;
+         expectTypeOf<Inferred>().toEqualTypeOf<{
+            name?: string;
+            age?: number;
+            [key: string]: unknown;
+         }>();
+         assertJson(schema, {
+            type: "object",
+            properties: {
+               name: { type: "string" },
+               age: { type: "number" },
+            },
          });
       }
    });
@@ -222,110 +454,12 @@ describe("object", () => {
       });
    });
 
-   test("record", () => {
-      {
-         // simple
-         const simple = record(string());
-         type Simple = Static<typeof simple>;
-         expectTypeOf<Simple>().toEqualTypeOf<{ [key: string]: string }>();
-         assertJson(simple, {
-            type: "object",
-            additionalProperties: { type: "string" },
-         });
-      }
-
-      const schema = record(
-         object({
-            name: string(),
-            age: number().optional(),
-         })
-      );
-      type Inferred = Static<typeof schema>;
-      expectTypeOf<Inferred>().toEqualTypeOf<{
-         [key: string]: { name: string; age?: number; [key: string]: unknown };
-      }>();
-
-      assertJson(schema, {
-         type: "object",
-         additionalProperties: {
-            type: "object",
-            properties: { name: { type: "string" }, age: { type: "number" } },
-            required: ["name"],
-         },
-      });
-
-      {
-         // in union
-         const schema = anyOf([
-            record(
-               object({
-                  name: string(),
-                  age: number().optional(),
-               })
-            ),
-            string(),
-         ]);
-         type Inferred = Static<typeof schema>;
-         expectTypeOf<Inferred>().toEqualTypeOf<
-            | {
-                 [key: string]: {
-                    name: string;
-                    age?: number;
-                    [key: string]: unknown;
-                 };
-              }
-            | string
-         >();
-      }
-
-      {
-         // any
-         const inner = any();
-         type Inner = (typeof inner)["static"];
-         //   ^?
-         expectTypeOf<Inner>().toEqualTypeOf<any>();
-         type InnerStatic = Static<typeof inner>;
-         //   ^?
-         expectTypeOf<InnerStatic>().toEqualTypeOf<any>();
-
-         const schema = record(inner);
-         type Inferred = Static<typeof schema>;
-         //   ^?
-
-         expectTypeOf<Inferred>().toEqualTypeOf<{
-            [key: string]: any;
-         }>();
-      }
-   });
-
-   test("partialObject", () => {
-      const schema = partialObject({
-         name: string(),
-         // expect this to be non-influential
-         age: number().optional(),
-      });
-
-      type Inferred = Static<typeof schema>;
-      expectTypeOf<Inferred>().toEqualTypeOf<{
-         name?: string;
-         age?: number;
-         [key: string]: unknown;
-      }>();
-      assertJson(schema, {
-         type: "object",
-         properties: {
-            name: { type: "string" },
-            age: { type: "number" },
-         },
-      });
-   });
-
    test("merging", () => {
       const schema1 = object({ string: string() });
       const schema2 = object({ number: number().optional() });
 
       // expect properties to be accessible
-      expect(schema1.properties.string[$kind]).toEqual("string");
+      expect(schema1.properties.string.type).toEqual("string");
 
       const merged = object({
          ...schema1.properties,
@@ -368,18 +502,20 @@ describe("object", () => {
 
          {
             // patternProperties ignores additionalProperties
-            const result = strictObject(
+            const result = object(
                { a: number() },
                {
                   patternProperties: { "^b": string() },
                }
-            ).validate({ a: 11, b: "2" });
+            )
+               .strict()
+               .validate({ a: 11, b: "2" });
             expect(result.valid).toBe(true);
          }
 
          {
             // an additional invalid property is invalid
-            const result = object(
+            const schema = object(
                {
                   foo: any(),
                   bar: any(),
@@ -387,7 +523,8 @@ describe("object", () => {
                {
                   additionalProperties: boolean(),
                }
-            ).validate({
+            );
+            const result = schema.validate({
                foo: 1,
                bar: 2,
                quux: 12,
@@ -397,16 +534,37 @@ describe("object", () => {
          }
       });
 
-      test("template", () => {
+      test("with optional prop as undefined", () => {
          const schema = object({
             name: string(),
-            surname: string().optional(),
+            type: string().optional(),
          });
+         expect(schema.validate({ name: "John" }).valid).toBe(true);
+         expect(schema.validate({ name: "John", type: undefined }).valid).toBe(
+            true
+         );
+      });
+
+      /* test("template", () => {
+         const schema = object({
+            name: string(),
+            surname: string({ default: "Doe" }).optional(),
+         }).strict();
          expect(schema.template()).toEqual({ name: "" });
-         expect(schema.template({ withOptional: true })).toEqual({
+         expect(schema.template({}, { withOptional: true })).toEqual({
             name: "",
             surname: "",
          });
+
+         type Defaults = ObjectDefaults<(typeof schema)["properties"]>;
+         //   ^?
+
+         const schema2 = partialObject({
+            name: string(),
+            surname: string({ default: "Doe" }),
+         });
+         type Defaults2 = ObjectDefaults<(typeof schema2)["properties"]>;
+         //   ^?
 
          // object in object
          {
@@ -415,13 +573,13 @@ describe("object", () => {
                   name: string().optional(),
                }).optional(),
             });
-            expect(schema.template({ withOptional: true })).toEqual({
+            expect(schema.template({}, { withOptional: true })).toEqual({
                nested: {
                   name: "",
                },
             });
          }
-      });
+      }); */
    });
 
    test("typing", () => {
@@ -432,9 +590,22 @@ describe("object", () => {
          }),
          force: boolean({ coerce: () => true as const }).optional(),
       });
-      type Helper<S extends TSchema> = Static<S>;
-      type Out = Helper<typeof schema>;
+      type HelperStatic<S extends Schema> = Static<S>;
+      type HelperCoerced<S extends Schema> = StaticCoerced<S>;
+      type Out = HelperStatic<typeof schema>;
       //   ^?
+      expectTypeOf<Out>().toEqualTypeOf<{
+         url: string;
+         force?: boolean;
+         [key: string]: unknown;
+      }>();
+      type OutCoerced = HelperCoerced<typeof schema>;
+      //   ^?
+      expectTypeOf<OutCoerced>().toEqualTypeOf<{
+         url: "what";
+         force?: true;
+         [key: string]: unknown;
+      }>();
    });
 
    test("coerce", () => {
@@ -442,7 +613,7 @@ describe("object", () => {
          name: string(),
          age: number(),
       });
-      expect(schema.coerce("{}")).toEqual({});
+      expect(schema.coerce("{}")).toEqual({} as any);
       expect(schema.coerce('{"name": "John", "age": "30"}')).toEqual({
          name: "John",
          age: 30,
@@ -460,7 +631,10 @@ describe("object", () => {
          type StringCoerced = StaticCoerced<typeof s>;
          expectTypeOf<StringCoerced>().toEqualTypeOf<"asdf">();
          type Coerced = StaticCoerced<typeof schema>;
-         expectTypeOf<Coerced>().toEqualTypeOf<{ name: "asdf" }>();
+         expectTypeOf<Coerced>().toEqualTypeOf<{
+            name: "asdf";
+            [key: string]: unknown;
+         }>();
       }
 
       {
@@ -492,7 +666,140 @@ describe("object", () => {
          expectTypeOf<Coerced>().toEqualTypeOf<{
             url: "asdf";
             force?: boolean;
+            [key: string]: unknown;
          }>();
       }
+   });
+
+   test("template", () => {
+      const schema = object({
+         obj: object({
+            name: string(),
+         }),
+      });
+
+      expect(schema.template({ obj: { name: "what" } })).toEqual({
+         obj: { name: "what" },
+      });
+
+      {
+         // precedence is
+         // 1. const
+         // 2. template initial
+         // 3. parent default
+         // 4. child default
+         const schema = object({
+            obj: object(
+               {
+                  name: string({ default: "child" }),
+               },
+               {
+                  default: { name: "parent" },
+               }
+            ),
+         });
+         expect(schema.template({ obj: { name: "initial" } })).toEqual({
+            obj: { name: "initial" },
+         });
+         expect(schema.template()).toEqual({ obj: { name: "parent" } });
+
+         const schema2 = object({
+            obj: object({
+               name: string({ default: "child" }),
+            }),
+         });
+         expect(schema2.template({ obj: { name: "initial" } })).toEqual({
+            obj: { name: "initial" },
+         });
+         expect(schema2.template()).toEqual({ obj: { name: "child" } });
+      }
+   });
+
+   test("walk", () => {
+      const schema = object(
+         {
+            name: string(),
+            tags: array(string()),
+            type: string().optional(),
+         },
+         {
+            propertyNames: string(),
+         }
+      );
+
+      expect(
+         [...schema.walk()].map((n) => ({
+            ...n,
+            schema: n.schema.constructor.name,
+         }))
+      ).toEqual([
+         {
+            schema: "ObjectSchema",
+            instancePath: [],
+            keywordPath: [],
+         },
+         {
+            schema: "StringSchema",
+            instancePath: ["name"],
+            keywordPath: ["properties", "name"],
+         },
+         {
+            schema: "ArraySchema",
+            instancePath: ["tags"],
+            keywordPath: ["properties", "tags"],
+         },
+         {
+            schema: "StringSchema",
+            instancePath: ["tags"],
+            keywordPath: ["properties", "tags", "items"],
+         },
+         {
+            schema: "StringSchema",
+            instancePath: ["type"],
+            keywordPath: ["properties", "type"],
+         },
+      ]);
+
+      expect(
+         [
+            ...schema.walk({
+               data: { name: "john", tags: ["a", "b"], type: "what" },
+            }),
+         ].map((n) => ({
+            ...n,
+            schema: n.schema.constructor.name,
+         }))
+      ).toEqual([
+         {
+            schema: "ObjectSchema",
+            instancePath: [],
+            keywordPath: [],
+            data: { name: "john", tags: ["a", "b"], type: "what" },
+         },
+         {
+            schema: "StringSchema",
+            instancePath: ["name"],
+            keywordPath: ["properties", "name"],
+            data: "john",
+         },
+         {
+            schema: "ArraySchema",
+            instancePath: ["tags"],
+            keywordPath: ["properties", "tags"],
+            data: ["a", "b"],
+         },
+         {
+            schema: "StringSchema",
+            instancePath: ["tags"],
+            keywordPath: ["properties", "tags", "items"],
+            data: undefined,
+         },
+         {
+            schema: "StringSchema",
+            instancePath: ["type"],
+            keywordPath: ["properties", "type"],
+            data: "what",
+         },
+      ]);
    });
 });

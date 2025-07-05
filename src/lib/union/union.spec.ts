@@ -1,18 +1,20 @@
 import { expectTypeOf } from "expect-type";
 import type { Static, StaticCoerced } from "../static";
-import { $kind } from "../symbols";
-import { allOf, anyOf, oneOf } from "./union";
+import { anyOf, oneOf, type StaticUnion, type StaticUnion2 } from "./union";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
-import { string, number, object, array, any, integer, literal } from "../";
+import { string } from "../string/string";
+import { number, integer } from "../number/number";
+import { object } from "../object/object";
+import { array } from "../array/array";
+import { any, literal } from "../schema/misc";
+import type { Schema, symbol } from "../schema/schema";
 
 describe("union", () => {
    test("anyOf", () => {
       const schema = anyOf([string(), number()]);
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<string | number>();
-
-      expect<any>(schema[$kind]).toEqual("anyOf");
 
       assertJson(schema, {
          anyOf: [{ type: "string" }, { type: "number" }],
@@ -38,13 +40,13 @@ describe("union", () => {
          type: string({ const: "ref/resource" }),
          uri: string().optional(),
       });
-      type OneStatic = (typeof one)["static"];
+      type OneStatic = (typeof one)[typeof symbol]["static"];
       //   ^?
       type OneInferred = Static<typeof one>;
       //   ^?
 
       const aobj = array(object({ name: string() }));
-      type AobjStatic = (typeof aobj)["static"];
+      type AobjStatic = (typeof aobj)[typeof symbol]["static"];
       //   ^?
       type AobjInferred = Static<typeof aobj>;
       //   ^?
@@ -56,7 +58,7 @@ describe("union", () => {
             name: string(),
          }),
       ]);
-      type AnyOfStatic = (typeof schema)["static"];
+      type AnyOfStatic = (typeof schema)[typeof symbol]["static"];
       //   ^?
       expectTypeOf<AnyOfStatic>().toEqualTypeOf<
          | {
@@ -119,12 +121,69 @@ describe("union", () => {
       });
    });
 
+   test("anyOf with objects as array", () => {
+      const objects = {
+         one: object({
+            type: literal("one"),
+            name: string(),
+         }),
+         two: object({
+            type: literal("two"),
+            name: string(),
+            num: number(),
+         }),
+      } as const;
+      const v = Object.values(objects);
+      const schema = anyOf(v);
+      type Inferred = Static<typeof schema>;
+      //   ^?
+
+      {
+         const schema = anyOf([objects.one, objects.two]);
+         type Inferred = Static<typeof schema>;
+         //   ^?
+      }
+      {
+         const v = [objects.one, objects.two];
+         const schema = anyOf(v);
+         type Inferred = Static<typeof schema>;
+         //   ^?
+      }
+      {
+         type Union2<T extends Schema[]> = {
+            [K in keyof T]: T[K] extends Schema ? Static<T[K]> : never;
+         }[number];
+         type T2 = Union2<typeof v>;
+         //   ^?
+      }
+   });
+
+   test("anyOf with enum string, and string", () => {
+      const arr = [
+         string({ enum: ["entity", "relation", "media"] }),
+         string({ pattern: "^template-" }),
+      ];
+      const action = string({ enum: ["entity", "relation", "media"] });
+      type ActionInferred = Static<typeof action>;
+      //   ^?
+
+      const anyAction = string({ pattern: "^template-" });
+      type AnyActionInferred = Static<typeof anyAction>;
+      //   ^?
+
+      const schemaAction = anyOf([
+         string({ enum: ["entity", "relation", "media"] }),
+         string({ pattern: "^template-" }),
+      ]);
+      type Inferred = Static<typeof schemaAction>;
+      //   ^?
+      type Inferred2 = StaticUnion2<typeof arr>;
+   });
+
    test("oneOf", () => {
       const schema = oneOf([string(), number()]);
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<string | number>();
-
-      expect<any>(schema[$kind]).toEqual("oneOf");
 
       assertJson(schema, {
          oneOf: [{ type: "string" }, { type: "number" }],
@@ -132,50 +191,6 @@ describe("union", () => {
    });
 
    // use with caution!
-   test("allOf", () => {
-      const schema = allOf([
-         object({ test: string() }),
-         object({ what: string() }),
-      ]);
-      type Inferred = Static<typeof schema>;
-      expectTypeOf<Inferred>().toEqualTypeOf<{
-         test: string;
-         what: string;
-         [key: string]: unknown;
-      }>();
-
-      //console.log(JSON.stringify(schema, null, 2));
-      assertJson(schema, {
-         type: "object",
-         required: ["test", "what"],
-         properties: {
-            test: {
-               type: "string",
-            },
-            what: {
-               type: "string",
-            },
-         },
-      });
-   });
-
-   test("allOf complex", () => {
-      const schema = allOf([
-         object({
-            bar: number(),
-         }),
-         object({
-            foo: string(),
-         }),
-      ]);
-      //console.log(schema);
-      type Inferred = Static<typeof schema>;
-      expectTypeOf<Inferred>().toEqualTypeOf<{
-         bar: number;
-         foo: string;
-         [key: string]: unknown;
-      }>();
-   });
 
    test("template", () => {
       const schema = anyOf([string(), number()], { default: 1 });
@@ -202,11 +217,74 @@ describe("union", () => {
             return [String(value)];
          },
       });
-      type Inferred = StaticCoerced<typeof schema>;
-      expectTypeOf<Inferred>().toEqualTypeOf<string[]>();
+      type Inferred = Static<typeof schema>;
+      expectTypeOf<Inferred>().toEqualTypeOf<string | string[]>();
+      type Coerced = (typeof schema)[typeof symbol]["coerced"];
+      expectTypeOf<Coerced>().toEqualTypeOf<string[]>();
+      type Coerced2 = StaticCoerced<typeof schema>;
+      expectTypeOf<Coerced2>().toEqualTypeOf<string[]>();
 
       expect(schema.coerce("test")).toEqual(["test"]);
       expect(schema.coerce("test,test2")).toEqual(["test", "test2"]);
       expect(schema.coerce(["test", "test2"])).toEqual(["test", "test2"]);
+   });
+
+   test("walk", () => {
+      const schema = anyOf([string(), number()]);
+      expect(
+         [...schema.walk()].map((n) => ({
+            ...n,
+            schema: n.schema.constructor.name,
+         }))
+      ).toEqual([
+         {
+            schema: "UnionSchema",
+            instancePath: [],
+            keywordPath: [],
+            data: undefined,
+         },
+         {
+            schema: "StringSchema",
+            instancePath: [],
+            keywordPath: ["anyOf", 0],
+            data: undefined,
+         },
+         {
+            schema: "",
+            instancePath: [],
+            keywordPath: ["anyOf", 1],
+            data: undefined,
+         },
+      ]);
+
+      expect(
+         [
+            ...schema.walk({
+               data: 1,
+            }),
+         ].map((n) => ({
+            ...n,
+            schema: n.schema.constructor.name,
+         }))
+      ).toEqual([
+         {
+            schema: "UnionSchema",
+            instancePath: [],
+            keywordPath: [],
+            data: 1,
+         },
+         {
+            schema: "StringSchema",
+            instancePath: [],
+            keywordPath: ["anyOf", 0],
+            data: undefined,
+         },
+         {
+            schema: "",
+            instancePath: [],
+            keywordPath: ["anyOf", 1],
+            data: 1,
+         },
+      ]);
    });
 });

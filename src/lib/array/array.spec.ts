@@ -3,7 +3,9 @@ import type { Static, StaticCoerced } from "../static";
 import { array } from "./array";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
-import { string, number, object, any } from "../";
+import { object } from "../object/object";
+import { string } from "../string/string";
+import { number } from "../number/number";
 
 describe("array", () => {
    test("basic with string", () => {
@@ -144,6 +146,7 @@ describe("array", () => {
          const schema = array(string(), { contains: string() });
          expect(schema.validate(["a", "b"]).valid).toBe(true);
          expect(schema.validate(["a", "b", 1]).valid).toBe(false);
+         expect(schema.validate([2, 1]).valid).toBe(false);
       });
    });
 
@@ -155,7 +158,7 @@ describe("array", () => {
    test("coerce", () => {
       {
          // expect nothing to happen, including no error
-         expect(array().coerce("")).toBe("");
+         expect(array().coerce("")).toBe("" as any);
       }
 
       {

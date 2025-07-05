@@ -1,6 +1,5 @@
 import { expectTypeOf } from "expect-type";
 import { type Static } from "../static";
-import { $kind } from "../symbols";
 import { boolean } from "./boolean";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
@@ -11,8 +10,17 @@ describe("number", () => {
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<boolean>();
 
-      expect<any>(boolean()[$kind]).toEqual("boolean");
       assertJson(boolean(), { type: "boolean" });
+
+      {
+         // optional
+         const schema = boolean().optional();
+         type Inferred = Static<typeof schema>;
+         //   ^?
+         expectTypeOf<Inferred>().toEqualTypeOf<boolean | undefined>();
+
+         assertJson(schema, { type: "boolean" });
+      }
    });
 
    test("with const", () => {

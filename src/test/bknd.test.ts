@@ -2,9 +2,11 @@ import { describe, expect, test } from "bun:test";
 import { expectTypeOf } from "expect-type";
 import * as s from "../lib";
 import { assertJson } from "../lib/assert";
-import type { NumberSchema } from "../lib/types";
-import { type CoercionOptions, type TAnyOf } from "../lib";
+import { type CoercionOptions } from "../lib";
 import { isObject } from "../lib/utils";
+import * as tb from "@sinclair/typebox";
+import { Type, Static as TbStatic } from "@sinclair/typebox";
+import { Default } from "@sinclair/typebox/value";
 
 describe("Field", () => {
    const ActionContext = ["create", "read", "update", "delete"] as const;
@@ -22,40 +24,42 @@ describe("Field", () => {
    const DEFAULT_FILLABLE = true;
    const DEFAULT_HIDDEN = false;
 
-   const baseFieldConfig = s.partialObject(
-      {
-         label: s.string(),
-         description: s.string(),
-         required: s.boolean({ default: DEFAULT_REQUIRED }),
-         virtual: s.boolean({ default: false }),
-         default_value: s.any(),
-         fillable: s.anyOf(
-            [
-               s.boolean({ title: "Boolean", default: DEFAULT_FILLABLE }),
-               s.array(s.string({ enum: ActionContext, title: "Context" }), {
-                  uniqueItems: true,
-               }),
-            ],
-            {
-               default: DEFAULT_FILLABLE,
-            }
-         ),
-         hidden: s.anyOf(
-            [
-               s.boolean({ title: "Boolean", default: DEFAULT_HIDDEN }),
-               s.array(s.string({ enum: TmpContext, title: "Context" }), {
-                  uniqueItems: true,
-               }),
-            ],
-            {
-               default: DEFAULT_HIDDEN,
-            }
-         ),
-      },
-      {
-         additionalProperties: false,
-      }
-   );
+   const baseFieldConfig = s
+      .object(
+         {
+            label: s.string(),
+            description: s.string(),
+            required: s.boolean({ default: DEFAULT_REQUIRED }),
+            virtual: s.boolean({ default: false }),
+            default_value: s.any(),
+            fillable: s.anyOf(
+               [
+                  s.boolean({ title: "Boolean", default: DEFAULT_FILLABLE }),
+                  s.array(s.string({ enum: ActionContext, title: "Context" }), {
+                     uniqueItems: true,
+                  }),
+               ],
+               {
+                  default: DEFAULT_FILLABLE,
+               }
+            ),
+            hidden: s.anyOf(
+               [
+                  s.boolean({ title: "Boolean", default: DEFAULT_HIDDEN }),
+                  s.array(s.string({ enum: TmpContext, title: "Context" }), {
+                     uniqueItems: true,
+                  }),
+               ],
+               {
+                  default: DEFAULT_HIDDEN,
+               }
+            ),
+         },
+         {
+            additionalProperties: false,
+         }
+      )
+      .partial();
    type InferredBaseFieldConfig = s.Static<typeof baseFieldConfig>;
 
    test("BaseField config", () => {
@@ -79,10 +83,8 @@ describe("Field", () => {
               )[];
       }>();
 
-      expect(baseFieldConfig.template()).toEqual({});
-      expect(baseFieldConfig.template({ withOptional: true })).toEqual({
-         label: "",
-         description: "",
+      expect(baseFieldConfig.template()).toEqual(undefined as any);
+      expect(baseFieldConfig.template({}, { withOptional: true })).toEqual({
          required: false,
          virtual: false,
          fillable: true,
@@ -91,14 +93,16 @@ describe("Field", () => {
    });
 
    test("NumberField config", () => {
-      const schema = s.partialObject({
-         default_value: s.number(),
-         minimum: s.number(),
-         maximum: s.number(),
-         exclusiveMinimum: s.boolean(),
-         exclusiveMaximum: s.boolean(),
-         multipleOf: s.number(),
-      });
+      const schema = s
+         .object({
+            default_value: s.number(),
+            minimum: s.number(),
+            maximum: s.number(),
+            exclusiveMinimum: s.boolean(),
+            exclusiveMaximum: s.boolean(),
+            multipleOf: s.number(),
+         })
+         .partial();
       type Inferred = s.Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<{
          default_value?: number;
@@ -122,10 +126,12 @@ describe("Field", () => {
          },
       });
 
-      const combined = s.partialObject({
-         ...baseFieldConfig.properties,
-         ...schema.properties,
-      });
+      const combined = s
+         .object({
+            ...baseFieldConfig.properties,
+            ...schema.properties,
+         })
+         .partial();
       type CombinedInferred = s.Static<typeof combined>;
       expectTypeOf<CombinedInferred>().toEqualTypeOf<{
          [key: string]: unknown;
@@ -153,24 +159,63 @@ describe("Field", () => {
               )[];
       }>();
    });
+
+   test("TextField", () => {
+      const textFieldConfigSchema = s
+         .strictObject({
+            default_value: s.string(),
+            minLength: s.number(),
+            maxLength: s.number(),
+            pattern: s.string(),
+            html_config: s.object({
+               element: s.string({ default: "input" }),
+               props: s.record(
+                  s.anyOf([
+                     s.string({ title: "String" }),
+                     s.number({ title: "Number" }),
+                  ])
+               ),
+            }),
+         })
+         .partial();
+
+      /* console.log("template", textFieldConfigSchema.template());
+      console.log(
+         "template",
+         textFieldConfigSchema.template({}, { withOptional: true })
+      ); */
+   });
+
+   test.skip("walk", () => {
+      console.log(
+         [...baseFieldConfig.walk()].map((n) => ({
+            ...n,
+            schema: n.schema.constructor.name,
+         }))
+      );
+   });
 });
 
 describe("AppServer", () => {
-   const schema = s.strictObject({
-      cors: s.strictObject(
-         {
-            origin: s.string({ default: "*" }),
-            allow_methods: s.array(
-               s.string({ enum: ["GET", "POST", "PUT", "DELETE"] }),
+   const schema = s
+      .object({
+         cors: s
+            .object(
                {
-                  uniqueItems: true,
-               }
-            ),
-            allow_headers: s.array(s.string(), { uniqueItems: true }),
-         },
-         { default: {} }
-      ),
-   });
+                  origin: s.string({ default: "*" }),
+                  allow_methods: s.array(
+                     s.string({ enum: ["GET", "POST", "PUT", "DELETE"] }),
+                     {
+                        uniqueItems: true,
+                     }
+                  ),
+                  allow_headers: s.array(s.string(), { uniqueItems: true }),
+               },
+               { default: {} }
+            )
+            .strict(),
+      })
+      .strict();
    type Inferred = s.Static<typeof schema>;
    expectTypeOf<Inferred>().toEqualTypeOf<{
       cors: {
@@ -213,7 +258,7 @@ describe("AppServer", () => {
 
 describe("misc", () => {
    test("RepoQuery", () => {
-      const numberOrString = <N extends NumberSchema>(c: N = {} as N) =>
+      const numberOrString = (c: s.INumberOptions = {}) =>
          s.anyOf([s.number(c), s.string()], {
             coerce: Number,
          });
@@ -242,10 +287,12 @@ describe("misc", () => {
       type StringArrayOut = s.StaticCoerced<typeof stringArray>;
       expectTypeOf<StringArrayOut>().toEqualTypeOf<string[]>();
 
-      const sortObj = s.strictObject({
-         by: s.string(),
-         dir: s.string({ enum: ["asc", "desc"] }),
-      });
+      const sortObj = s
+         .object({
+            by: s.string(),
+            dir: s.string({ enum: ["asc", "desc"] }),
+         })
+         .strict();
       type SortObj = s.Static<typeof sortObj>;
       expectTypeOf<SortObj>().toEqualTypeOf<{
          by: string;
@@ -274,13 +321,15 @@ describe("misc", () => {
          dir: "asc" | "desc";
       }>();
 
-      const repoQuery = s.partialObject({
-         limit: numberOrString({ default: 10 }),
-         offset: numberOrString({ default: 0 }),
-         sort,
-         select: stringArray,
-         join: stringArray,
-      });
+      const repoQuery = s
+         .object({
+            limit: numberOrString({ default: 10 }),
+            offset: numberOrString({ default: 0 }),
+            sort,
+            select: stringArray,
+            join: stringArray,
+         })
+         .partial();
       type RepoQueryIn = s.Static<typeof repoQuery>;
       expectTypeOf<RepoQueryIn>().toEqualTypeOf<{
          [key: string]: unknown;
@@ -298,6 +347,7 @@ describe("misc", () => {
          sort?: { by: string; dir: "asc" | "desc" };
          select?: string[];
          join?: string[];
+         [key: string]: unknown;
       }>();
 
       expect(repoQuery.coerce({ limit: "11", select: "id" })).toEqual({
@@ -313,7 +363,7 @@ describe("misc", () => {
          // allow "id", "id,title" – but not "id," or "not allowed"
          pattern: "^(?:[a-zA-Z_$][\\w$]*)(?:,[a-zA-Z_$][\\w$]*)*$",
       });
-      const numberOrString = <N extends s.NumberSchema>(c: N = {} as N) =>
+      const numberOrString = (c: s.INumberOptions = {}) =>
          s.anyOf([s.number(c), s.string()], {
             coerce: Number,
          });
@@ -393,6 +443,7 @@ describe("misc", () => {
          ],
          {
             coerce: function (
+               // @ts-expect-error need to fix
                this: TAnyOf<any>,
                _value: unknown,
                opts: CoercionOptions = {}
@@ -431,15 +482,17 @@ describe("misc", () => {
 
       // ==========
       // REPO QUERY
-      const repoQuery = s.partialObject({
-         limit: numberOrString({ default: 10 }),
-         offset: numberOrString({ default: 0 }),
-         sort,
-         where,
-         select: stringArray,
-         join: stringArray,
-         with: withSchema,
-      });
+      const repoQuery = s
+         .object({
+            limit: numberOrString({ default: 10 }),
+            offset: numberOrString({ default: 0 }),
+            sort,
+            where,
+            select: stringArray,
+            join: stringArray,
+            with: withSchema,
+         })
+         .partial();
       type RepoQueryIn = {
          limit?: number;
          offset?: number;
@@ -462,15 +515,13 @@ describe("misc", () => {
       );
    });
 
-   test.only("RepoQuery2", () => {
+   test("RepoQuery2", () => {
       // -------
       // helpers
       const stringIdentifier = s.string({
          // allow "id", "id,title" – but not "id," or "not allowed"
          pattern: "^(?:[a-zA-Z_$][\\w$]*)(?:,[a-zA-Z_$][\\w$]*)*$",
       });
-      const numberOrString = <N extends s.NumberSchema>(c: N = {} as N) =>
-         s.anyOf([s.number(c), s.string()]);
       const stringArray = s.anyOf(
          [
             stringIdentifier,
@@ -539,15 +590,9 @@ describe("misc", () => {
          }
       >;
 
-      const withSchema = <In, Out = In>(
-         self: s.TSchema
-      ): s.TSchemaInOut<In, Out> =>
+      const withSchema = <In, Out = In>(self: s.Schema): any =>
          s.anyOf([stringIdentifier, s.array(stringIdentifier), self], {
-            coerce: function (
-               this: TAnyOf<any>,
-               _value: unknown,
-               opts: CoercionOptions = {}
-            ) {
+            coerce: function (_value: unknown, opts: CoercionOptions = {}) {
                let value: any = _value;
 
                if (typeof value === "string") {
@@ -580,17 +625,20 @@ describe("misc", () => {
 
       // ==========
       // REPO QUERY
-      const repoQuery = s.recursive((self) =>
-         s.partialObject({
-            limit: numberOrString({ default: 10 }),
-            offset: numberOrString({ default: 0 }),
-            sort,
-            where,
-            select: stringArray,
-            join: stringArray,
-            with: withSchema<RepoWithSchema>(self),
-         })
-      );
+      const repoQuery = s
+         .recursive((self) =>
+            s.object({
+               limit: s.number({ default: 10 }),
+               offset: s.number({ default: 0 }),
+               sort,
+               where,
+               select: stringArray,
+               join: stringArray,
+               // ts-expect-error need to fix
+               with: withSchema<RepoWithSchema>(self),
+            })
+         )
+         .partial();
       type RepoQueryIn = {
          limit?: number;
          offset?: number;
@@ -602,16 +650,21 @@ describe("misc", () => {
       };
       type RepoQuery = s.StaticCoerced<typeof repoQuery>;
 
-      let example = {
-         limit: 10,
+      expect(
+         repoQuery.coerce({
+            limit: 1,
+            with: {
+               posts: { limit: "1", with: ["comments"] },
+            },
+         })
+      ).toEqual({
+         limit: 1,
          with: {
-            posts: { limit: "10", with: ["comments"] },
+            posts: { limit: 1, with: { comments: {} } },
          },
-      };
-
-      console.log("coerced", repoQuery.coerce({ limit: false }));
-      console.log("coerced", repoQuery.coerce({ limit: "10" }));
-      console.log("coerced2", s.number().coerce(false));
+      });
+      /*console.log("coerced", repoQuery.coerce({ limit: "10" }));
+      console.log("coerced2", s.number().coerce(false)); */
 
       /* console.log("parse", repoQuery.coerce(example));
       console.log(
@@ -620,5 +673,130 @@ describe("misc", () => {
             ignoreUnsupported: true,
          })
       ); */
+   });
+
+   test("schema object additional properties", () => {
+      const schema = s.strictObject({
+         s: s.strictObject(
+            {
+               a: s.string({ default: "b" }),
+               b: s.strictObject(
+                  {
+                     c: s.string({ default: "d" }),
+                     e: s.string({ default: "f" }),
+                  },
+                  { default: {} }
+               ),
+            },
+            { default: {} }
+         ),
+      });
+
+      console.log("template", schema.template({ s: { a: "1", c: "2" } }));
+
+      console.log(
+         JSON.stringify(
+            schema.validate(schema.template({ s: { c: 1 } })),
+            null,
+            2
+         )
+      );
+   });
+});
+
+describe("schemas", () => {
+   const StringEnum = <const T extends readonly string[]>(
+      values: T,
+      options?: tb.StringOptions
+   ) =>
+      tb.Type.Unsafe<T[number]>({
+         [tb.Kind]: "StringEnum",
+         type: "string",
+         enum: values,
+         ...options,
+      });
+
+   test("AppServer", () => {
+      const serverMethods = ["GET", "POST", "PATCH", "PUT", "DELETE"] as const;
+      const schemas = {
+         jsonv: s
+            .object({
+               cors: s
+                  .object({
+                     origin: s.string({ default: "*" }),
+                     allow_methods: s.array(s.string({ enum: serverMethods }), {
+                        default: serverMethods,
+                        uniqueItems: true,
+                     }),
+                     allow_headers: s.array(s.string(), {
+                        default: [
+                           "Content-Type",
+                           "Content-Length",
+                           "Authorization",
+                           "Accept",
+                        ],
+                     }),
+                  })
+                  .strict(),
+            })
+            .strict(),
+         typebox: Type.Object(
+            {
+               cors: Type.Object(
+                  {
+                     origin: Type.String({ default: "*" }),
+                     allow_methods: Type.Array(StringEnum(serverMethods), {
+                        default: serverMethods,
+                        uniqueItems: true,
+                     }),
+                     allow_headers: Type.Array(Type.String(), {
+                        default: [
+                           "Content-Type",
+                           "Content-Length",
+                           "Authorization",
+                           "Accept",
+                        ],
+                     }),
+                  },
+                  { default: {}, additionalProperties: false }
+               ),
+            },
+            {
+               additionalProperties: false,
+            }
+         ),
+      };
+
+      expect(schemas.jsonv.template()).toEqual({
+         cors: {
+            origin: "*",
+            allow_methods: ["GET", "POST", "PATCH", "PUT", "DELETE"],
+            allow_headers: [
+               "Content-Type",
+               "Content-Length",
+               "Authorization",
+               "Accept",
+            ],
+         },
+      });
+      expect(
+         schemas.jsonv.template({
+            cors: {
+               origin: "https",
+               allow_methods: ["GET", "POST"],
+            },
+         })
+      ).toEqual({
+         cors: {
+            origin: "https",
+            allow_methods: ["GET", "POST"],
+            allow_headers: [
+               "Content-Type",
+               "Content-Length",
+               "Authorization",
+               "Accept",
+            ],
+         },
+      });
    });
 });

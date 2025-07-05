@@ -3,27 +3,18 @@ import { type Static, type StaticCoerced } from "../static";
 import { recursive, ref, refId } from "./ref";
 import { assertJson } from "../assert";
 import { describe, expect, test } from "bun:test";
-import {
-   string,
-   number,
-   object,
-   anyOf,
-   partialObject,
-   array,
-   type TSchema,
-   type TSchemaInOut,
-   schema,
-} from "../";
-import { $kind } from "../symbols";
+import { string, number, object, anyOf, array } from "../";
+import { symbol } from "../schema/schema";
 
 describe("ref", () => {
    test("basic", () => {
       const referenced = string({ $id: "string" });
+      expect(referenced.$id).toEqual("string");
       const schema = ref(referenced);
+
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<string>();
 
-      expect<any>(schema[$kind]).toEqual("ref");
       expect<any>(schema.$ref).toEqual("string");
       assertJson(schema, {
          $ref: "string",
@@ -36,7 +27,10 @@ describe("ref", () => {
    });
 
    test("prefix", () => {
-      const schema = ref(string({ $id: "string" }), "#$defs/somewhereelse");
+      const schema = ref(
+         string({ $id: "string", title: "what" }),
+         "#$defs/somewhereelse"
+      );
       expect(schema.$ref).toEqual("#$defs/somewhereelse");
    });
 
@@ -80,6 +74,7 @@ describe("ref", () => {
       expectTypeOf<Coerced>().toEqualTypeOf<{
          limit: number;
          offset: number;
+         [key: string]: unknown;
       }>();
       expect(query.toJSON()).toEqual({
          $defs: {
@@ -98,7 +93,7 @@ describe("ref", () => {
    });
 
    test("rec", () => {
-      const schema = partialObject(
+      const schema = object(
          {
             limit: number(),
             with: refId("schema"),
@@ -106,7 +101,7 @@ describe("ref", () => {
          {
             $id: "schema",
          }
-      );
+      ).partial();
 
       expect(schema.toJSON()).toEqual({
          $id: "schema",
@@ -154,15 +149,41 @@ describe("ref", () => {
       });
    });
 
-   test("rec within union", () => {
+   test("rec within object props", () => {
+      const schema = object({
+         limit: number(),
+         with: refId("#"),
+      });
+      expect(schema.coerce({ limit: 1, with: { limit: "2" } })).toEqual({
+         limit: 1,
+         with: {
+            limit: 2,
+         },
+      });
+   });
+
+   test("rec object", () => {
+      const schema = object({
+         limit: number(),
+         with: refId("#").optional(),
+      });
+      expect(schema.coerce({ limit: 1, with: { limit: "2" } })).toEqual({
+         limit: 1,
+         with: {
+            limit: 2,
+         },
+      });
+   });
+
+   test("rec within object & union", () => {
       const schema = object({
          limit: number(),
          with: anyOf([string(), refId("#")]).optional(),
       });
-      expect(schema.coerce({ limit: 1, with: { limit: "1" } })).toEqual({
+      expect(schema.coerce({ limit: 1, with: { limit: "2" } })).toEqual({
          limit: 1,
          with: {
-            limit: 1,
+            limit: 2,
          },
       });
    });
@@ -173,7 +194,7 @@ describe("ref", () => {
          nodes: array(),
       });
 
-      expect(s.coerce({ id: 1 })).toEqual({ id: "1" });
+      expect(s.coerce({ id: 1 })).toEqual({ id: "1" } as any);
    });
 
    describe("recursive", () => {
@@ -194,24 +215,18 @@ describe("ref", () => {
          expectTypeOf<Coerced>().toEqualTypeOf<{
             id: string;
             nodes: unknown[];
+            [key: string]: unknown;
          }>();
       });
 
-      test.only("types with self fn", () => {
-         const withSchema = <T>(self: TSchema): TSchemaInOut<T, T> =>
-            anyOf([self, array(self)]);
-
-         const s = recursive((tthis) =>
-            partialObject(
-               {
-                  id: string(),
-                  nodes: withSchema(tthis),
-               },
-               {
-                  additionalProperties: schema(false),
-               }
-            )
+      test("types with self fn", () => {
+         const s = recursive((self) =>
+            object({
+               id: string(),
+               nodes: self,
+            }).partial()
          );
+
          type Inferred = Static<typeof s>;
          expectTypeOf<Inferred>().toEqualTypeOf<{
             id?: string;
@@ -222,18 +237,53 @@ describe("ref", () => {
          expectTypeOf<Coerced>().toEqualTypeOf<{
             id?: string;
             nodes?: unknown;
+            [key: string]: unknown;
+         }>();
+
+         const example = {
+            id: 1,
+            nodes: { id: 2 },
+         };
+         expect(s.coerce(example)).toEqual({
+            id: "1",
+            nodes: {
+               id: "2",
+            },
+         });
+      });
+
+      test("types with self fn & union/array", () => {
+         const s = recursive((self) =>
+            object({
+               id: string(),
+               nodes: anyOf([self, array(self)]),
+            }).partial()
+         );
+
+         type Inferred = Static<typeof s>;
+         expectTypeOf<Inferred>().toEqualTypeOf<{
+            id?: string;
+            nodes?: unknown;
+            [key: string]: unknown;
+         }>();
+         type Coerced = StaticCoerced<typeof s>;
+         expectTypeOf<Coerced>().toEqualTypeOf<{
+            id?: string;
+            nodes?: any;
+            [key: string]: unknown;
          }>();
 
          const example = {
             id: 1,
             nodes: { id: 2, nodes: [] },
          };
-         console.log(s.coerce(example));
-         console.log(
-            s.validate(example, {
-               ignoreUnsupported: true,
-            })
-         );
+         expect(s.coerce(example)).toEqual({
+            id: "1",
+            nodes: {
+               id: "2",
+               nodes: [],
+            },
+         });
       });
 
       test("raw", () => {
@@ -243,7 +293,9 @@ describe("ref", () => {
                nodes: array(tthis),
             })
          );
-         expect(s.toJSON()).toEqual({
+         type Inferred = Static<typeof s>;
+
+         assertJson(s, {
             type: "object",
             properties: {
                id: {
