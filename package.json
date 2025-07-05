@@ -39,6 +39,7 @@
    "devDependencies": {
       "@cfworker/json-schema": "^4.1.1",
       "@sinclair/typebox": "^0.34.35",
+      "@standard-schema/spec": "^1.0.0",
       "@types/bun": "latest",
       "ajv": "^8.17.1",
       "bun-types": "^1.2.9",

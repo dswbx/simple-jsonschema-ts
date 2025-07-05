@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import * as s from "../lib";
 import { expectTypeOf } from "expect-type";
 import { assertJson } from "../lib/assert";
-import { StandardSchemaV1 } from "../lib/types";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 
 describe("integration", () => {
    test("array with string enum", () => {

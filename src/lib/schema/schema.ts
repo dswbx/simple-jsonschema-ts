@@ -1,5 +1,6 @@
 import type { OptionallyOptional, Simplify, StaticConstEnum } from "../static";
-import type { JSONSchemaDefinition, StandardSchemaV1 } from "../types";
+import type { JSONSchemaDefinition } from "../types";
+import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { error, valid } from "../utils/details";
 import { fromJsonPointer, getPath } from "../utils/path";
 import { coerce, type CoercionOptions } from "../validation/coerce";
