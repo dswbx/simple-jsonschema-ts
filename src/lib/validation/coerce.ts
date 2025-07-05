@@ -12,7 +12,13 @@ export function coerce(
    _value: unknown,
    opts: CoercionOptions = {}
 ): unknown {
-   const value = structuredClone(_value);
+   let value = _value;
+   try {
+      value = structuredClone(_value);
+   } catch (e) {
+      value = JSON.parse(JSON.stringify(_value));
+   }
+
    const ctx: Required<CoercionOptions> = {
       resolver: opts.resolver || new Resolver(s),
       depth: opts.depth || 0,

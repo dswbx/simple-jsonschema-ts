@@ -290,7 +290,6 @@ export class Node<T extends Schema = Schema> {
    }
 
    setData(data: any) {
-      console.log("setData", data);
       this.data = structuredClone(data);
       return this;
    }
