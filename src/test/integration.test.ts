@@ -1,7 +1,8 @@
-import { describe, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import * as s from "../lib";
 import { expectTypeOf } from "expect-type";
 import { assertJson } from "../lib/assert";
+import { StandardSchemaV1 } from "../lib/types";
 
 describe("integration", () => {
    test("array with string enum", () => {
@@ -56,6 +57,35 @@ describe("integration", () => {
             },
          },
          required: ["name", "skills"],
+      });
+   });
+
+   test("standard schema", () => {
+      const schema = s.object({
+         name: s.string(),
+      });
+      type Input = StandardSchemaV1.InferInput<typeof schema>;
+      type Output = StandardSchemaV1.InferOutput<typeof schema>;
+      expectTypeOf<Input>().toEqualTypeOf<{
+         [key: string]: unknown;
+         name: string;
+      }>();
+      expectTypeOf<Output>().toEqualTypeOf<{
+         [key: string]: unknown;
+         name: string;
+      }>();
+
+      expect(schema["~standard"].validate({ name: "John" })).toEqual({
+         value: { name: "John" },
+      });
+
+      expect(schema["~standard"].validate({ name: 123 })).toEqual({
+         issues: [
+            {
+               message: "Expected string",
+               path: ["name"],
+            },
+         ],
       });
    });
 });
