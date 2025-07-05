@@ -33,7 +33,7 @@ export class StringSchema<
    }
 
    override toJSON() {
-      const { pattern, ...rest } = this as any;
+      const { pattern, "~standard": _, ...rest } = this as any;
       return JSON.parse(
          JSON.stringify({
             ...rest,

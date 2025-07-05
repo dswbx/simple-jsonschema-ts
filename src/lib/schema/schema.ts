@@ -1,7 +1,7 @@
 import type { OptionallyOptional, Simplify, StaticConstEnum } from "../static";
-import type { JSONSchemaDefinition } from "../types";
+import type { JSONSchemaDefinition, StandardSchemaV1 } from "../types";
 import { error, valid } from "../utils/details";
-import { getPath } from "../utils/path";
+import { fromJsonPointer, getPath } from "../utils/path";
 import { coerce, type CoercionOptions } from "../validation/coerce";
 import { Resolver } from "../validation/resolver";
 import {
@@ -57,6 +57,7 @@ export class Schema<
    Coerced = Type
 > implements IBaseSchemaOptions
 {
+   ["~standard"]: StandardSchemaV1.Props<Type, Type>;
    [symbol]!: {
       raw?: Options | any;
       static: StaticConstEnum<Options, Type>;
@@ -92,6 +93,25 @@ export class Schema<
          raw: o,
          optional: false,
          overrides,
+      };
+
+      this["~standard"] = {
+         version: 1,
+         vendor: "jsonv-ts",
+         validate: (value: unknown) => {
+            const result = this.validate(value);
+            if (result.valid) {
+               return {
+                  value: value as Type,
+               };
+            }
+            return {
+               issues: result.errors.map((e) => ({
+                  message: e.error,
+                  path: fromJsonPointer(e.instanceLocation),
+               })),
+            };
+         },
       };
    }
 
@@ -229,7 +249,7 @@ export class Schema<
    // cannot force type this one
    // otherwise ISchemaOptions must be widened to include any
    toJSON(): JSONSchemaDefinition {
-      const { toJSON, ...rest } = this;
+      const { toJSON, "~standard": _, ...rest } = this;
       return JSON.parse(JSON.stringify(rest));
    }
 }
