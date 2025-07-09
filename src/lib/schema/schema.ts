@@ -123,7 +123,7 @@ export class Schema<
       // if const is defined, ignore initial
       if (s.const !== undefined) {
          value = s.const;
-      } else if (!value) {
+      } else if (value === undefined) {
          // if no value, use enum or default
          if (s.default !== undefined) value = s.default;
          if (opts?.withExtendedOptional && s.enum !== undefined) {
