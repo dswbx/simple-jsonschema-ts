@@ -24,6 +24,7 @@ function eachObject<T>(
 export type AnySchema<Type = unknown> = lib.Schema<any, Type> &
    JSONSchema<lib.Schema>;
 
+// @todo: inject ctx?
 export function fromSchema<Type = unknown>(_schema: any): AnySchema<Type> {
    if (isBoolean(_schema)) {
       return lib.booleanSchema(_schema) as any;

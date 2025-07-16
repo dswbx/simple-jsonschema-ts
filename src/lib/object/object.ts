@@ -21,6 +21,7 @@ import {
    isSchema,
    isPlainObject,
    pickKeys,
+   injectCtx,
 } from "../utils";
 import { getPath } from "../utils/path";
 
@@ -88,7 +89,7 @@ export class ObjectSchema<
    properties: P;
    required: string[] | undefined;
 
-   constructor(properties: P, o?: O) {
+   constructor(properties: P, o?: O, ctx?: unknown) {
       let required: string[] | undefined = [];
       for (const [key, value] of Object.entries(properties || {})) {
          invariant(
@@ -183,9 +184,10 @@ export class ObjectSchema<
 
                return value;
             },
-         }
+         },
+         ctx
       );
-      this.properties = properties;
+      this.properties = injectCtx(this, properties);
       this.required = required;
    }
 
@@ -243,21 +245,24 @@ export const object = <
    const O extends IObjectOptions
 >(
    properties: P,
-   options?: StrictOptions<IObjectOptions, O>
-): ObjectSchema<P, O> & O => new ObjectSchema(properties, options) as any;
+   options?: StrictOptions<IObjectOptions, O>,
+   ctx?: unknown
+): ObjectSchema<P, O> & O => new ObjectSchema(properties, options, ctx) as any;
 
 export const strictObject = <
    const P extends TProperties2<P>,
    const O extends IObjectOptions
 >(
    properties: P,
-   options?: StrictOptions<IObjectOptions, O>
-) => object(properties, options).strict();
+   options?: StrictOptions<IObjectOptions, O>,
+   ctx?: unknown
+) => object(properties, options, ctx).strict();
 
 export const partialObject = <
    const P extends TProperties2<P>,
    const O extends IObjectOptions
 >(
    properties: P,
-   options?: StrictOptions<IObjectOptions, O>
-) => object(properties, options).partial();
+   options?: StrictOptions<IObjectOptions, O>,
+   ctx?: unknown
+) => object(properties, options, ctx).partial();

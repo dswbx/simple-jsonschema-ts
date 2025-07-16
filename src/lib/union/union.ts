@@ -7,6 +7,7 @@ import {
 } from "../schema/schema";
 import type { Merge, Static, StaticCoerced } from "../static";
 import { matches } from "../validation/keywords";
+import { injectCtx } from "../utils";
 
 export type StaticUnion2<T extends Schema[]> = T extends [
    infer U,
@@ -22,17 +23,6 @@ export type StaticUnion2<T extends Schema[]> = T extends [
 export type StaticUnion<T extends Schema[]> = {
    [K in keyof T]: T[K] extends Schema ? Static<T[K]> : never;
 }[number];
-
-/* export type StaticUnionCoerced<T extends Schema[]> = T extends [
-   infer U,
-   ...infer Rest
-]
-   ? U extends Schema
-      ? Rest extends Schema[]
-         ? StaticUnionCoerced<Rest> | StaticCoerced<U>
-         : StaticCoerced<U>
-      : never
-   : never; */
 
 export type StaticUnionCoerced<T extends Schema[]> = {
    [K in keyof T]: T[K] extends Schema ? StaticCoerced<T[K]> : never;
@@ -64,7 +54,12 @@ export class UnionSchema<T extends Schema[]> extends Schema<
 > {
    [unionTypeSymbol]: "oneOf" | "anyOf";
 
-   constructor(schemas: T, type: "oneOf" | "anyOf", options?: IUnionOptions) {
+   constructor(
+      schemas: T,
+      type: "oneOf" | "anyOf",
+      options?: IUnionOptions,
+      ctx?: unknown
+   ) {
       super(
          {
             ...options,
@@ -88,9 +83,11 @@ export class UnionSchema<T extends Schema[]> extends Schema<
                }
                return value;
             },
-         }
+         },
+         ctx
       );
       this[unionTypeSymbol] = type;
+      injectCtx(this, schemas);
    }
 
    get schemas() {
@@ -110,12 +107,15 @@ export class UnionSchema<T extends Schema[]> extends Schema<
 
 export const anyOf = <const T extends Schema[], const O extends IUnionOptions>(
    schemas: T,
-   options?: StrictOptions<IUnionOptions, O>
+   options?: StrictOptions<IUnionOptions, O>,
+   ctx?: unknown
 ): Schema<O, StaticUnion<T>, StaticUnionCoercedOptions<O, T>> &
-   Merge<O & { anyOf: T }> => new UnionSchema(schemas, "anyOf", options) as any;
+   Merge<O & { anyOf: T }> =>
+   new UnionSchema(schemas, "anyOf", options, ctx) as any;
 
 export const oneOf = <const T extends Schema[], const O extends IUnionOptions>(
    schemas: T,
-   options?: StrictOptions<IUnionOptions, O>
+   options?: StrictOptions<IUnionOptions, O>,
+   ctx?: unknown
 ): Schema<O, StaticUnion<T>, StaticUnionCoercedOptions<O, T>> & O =>
-   new UnionSchema(schemas, "oneOf", options) as any;
+   new UnionSchema(schemas, "oneOf", options, ctx) as any;

@@ -69,6 +69,7 @@ export class Schema<
          : OptionallyOptional<Coerced, StaticConstEnum<Options, Coerced>>;
       optional: boolean;
       overrides?: ISchemaFn;
+      ctx?: unknown;
    };
 
    readonly type: string | undefined;
@@ -83,7 +84,7 @@ export class Schema<
    examples?: any[];
    //const?: any;
 
-   constructor(o?: Options, overrides?: ISchemaFn) {
+   constructor(o?: Options, overrides?: ISchemaFn, ctx?: unknown) {
       // just prevent overriding properties
       const { type, validate, coerce, template, ...rest } = (o || {}) as any;
       // make sure type is the first property
@@ -94,6 +95,7 @@ export class Schema<
          raw: o,
          optional: false,
          overrides,
+         ctx,
       };
 
       this["~standard"] = {
