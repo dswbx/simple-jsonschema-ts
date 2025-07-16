@@ -14,7 +14,7 @@ import { number } from "../number/number";
 import { boolean } from "../boolean/boolean";
 import { array } from "../array/array";
 import { any } from "../schema/misc";
-import type { Schema, symbol } from "../schema/schema";
+import { type Schema, symbol } from "../schema/schema";
 
 describe("object", () => {
    test("basic", () => {
@@ -817,5 +817,59 @@ describe("object", () => {
             data: "what",
          },
       ]);
+   });
+
+   test.only("ctx", () => {
+      const checkCtx = (schemas: Schema[], toBe: unknown) => {
+         for (const schema of schemas) {
+            expect(schema[symbol].ctx).toEqual(toBe);
+         }
+      };
+
+      {
+         const schema = object({
+            name: string(),
+         });
+         checkCtx([schema, schema.properties.name], undefined);
+      }
+
+      {
+         const schema = object(
+            {
+               name: string(),
+            },
+            undefined,
+            { name: "what" }
+         );
+         checkCtx([schema, schema.properties.name], { name: "what" });
+      }
+
+      {
+         const schema = object(
+            {
+               name: string(),
+               nested: object({
+                  more: object({
+                     nombre: string(),
+                  }),
+               }),
+            },
+            undefined,
+            { name: "what" }
+         );
+         const schemas = [
+            schema,
+            schema.properties.name,
+            schema.properties.nested,
+            schema.properties.nested.properties.more,
+            schema.properties.nested.properties.more.properties.nombre,
+         ];
+         checkCtx(schemas, { name: "what" });
+
+         // override and expect references to be updated
+         (schema.properties.nested.properties.more[symbol].ctx as any).name =
+            "another";
+         checkCtx(schemas, { name: "another" });
+      }
    });
 });

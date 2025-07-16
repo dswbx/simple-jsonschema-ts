@@ -1,6 +1,6 @@
 import { InvariantError } from "../errors";
 import type { PropertyName, JSONSchemaDefinition } from "../types";
-import { Schema, type ISchemaOptions } from "../schema/schema";
+import { Schema, symbol, type ISchemaOptions } from "../schema/schema";
 
 export function isNull(value: unknown): value is null {
    return value === null;
@@ -66,6 +66,32 @@ export function isBooleanSchema(
    schema: unknown
 ): schema is Schema & { toJSON: () => boolean } {
    return isSchema(schema) && typeof schema.toJSON() === "boolean";
+}
+
+export function injectCtx<
+   C extends Schema | { [key: string]: Schema } | Schema[] | undefined
+>(parent: Schema, child: C): C {
+   const ctx = parent[symbol].ctx;
+   if (ctx === undefined) return child;
+
+   const apply = (c: Schema) => {
+      for (const node of c.walk()) {
+         node.schema[symbol].ctx = ctx;
+      }
+   };
+
+   if (isSchema(child)) {
+      apply(child);
+   } else if (Array.isArray(child)) {
+      for (const c of child) {
+         apply(c);
+      }
+   } else if (typeof child === "object" && child !== null) {
+      for (const c of Object.values(child)) {
+         apply(c);
+      }
+   }
+   return child as any;
 }
 
 export function matchesPattern(pattern: string, value: string): boolean {

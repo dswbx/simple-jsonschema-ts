@@ -6,7 +6,7 @@ import {
    type WalkOptions,
 } from "../schema/schema";
 import type { Static, StaticCoerced } from "../static";
-import { isSchema } from "../utils";
+import { injectCtx, isSchema } from "../utils";
 
 type ArrayStatic<T extends Schema> = Static<T>[] & {};
 type ArrayCoerced<T extends Schema> = StaticCoerced<T>[] & {};
@@ -28,7 +28,11 @@ export class ArraySchema<
 > extends Schema<O, ArrayStatic<Items>, ArrayCoerced<Items>> {
    override readonly type = "array";
 
-   constructor(public readonly items?: Items, options: O = {} as O) {
+   constructor(
+      public readonly items?: Items,
+      options: O = {} as O,
+      ctx?: unknown
+   ) {
       super(
          {
             ...options,
@@ -58,9 +62,10 @@ export class ArraySchema<
 
                return _value as any;
             },
-         }
+         },
+         ctx
       );
-      this.items = items;
+      injectCtx(this, items);
    }
 
    override children(opts?: WalkOptions): Node[] {
@@ -81,5 +86,6 @@ export const array = <
    const O extends IArrayOptions
 >(
    items?: Items,
-   options?: StrictOptions<IArrayOptions, O>
-): ArraySchema<Items, O> & O => new ArraySchema(items, options) as any;
+   options?: StrictOptions<IArrayOptions, O>,
+   ctx?: unknown
+): ArraySchema<Items, O> & O => new ArraySchema(items, options, ctx) as any;
