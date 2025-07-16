@@ -86,10 +86,9 @@ export class ObjectSchema<
       : Simplify<Merge<ObjectCoerced<P> & { [key: string]: unknown }>>
 > {
    override readonly type = "object";
-   properties: P;
    required: string[] | undefined;
 
-   constructor(properties: P, o?: O, ctx?: unknown) {
+   constructor(public readonly properties: P, o?: O, ctx?: unknown) {
       let required: string[] | undefined = [];
       for (const [key, value] of Object.entries(properties || {})) {
          invariant(
@@ -187,8 +186,8 @@ export class ObjectSchema<
          },
          ctx
       );
-      this.properties = injectCtx(this, properties);
       this.required = required;
+      injectCtx(this, properties);
    }
 
    strict() {
