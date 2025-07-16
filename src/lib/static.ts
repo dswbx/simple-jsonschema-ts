@@ -53,3 +53,15 @@ export type StaticConstEnum<Schema, Fallback = unknown> = Schema extends {
       ? E[number]
       : Fallback
    : Fallback;
+
+export type RemoveUnknownAdditionalProperties<T> = {
+   [K in keyof T]: K extends string ? T[K] : never;
+} extends Record<string, unknown>
+   ? {
+        [K in keyof T as K extends string
+           ? unknown extends T[K]
+              ? never
+              : K
+           : K]: T[K];
+     }
+   : T;

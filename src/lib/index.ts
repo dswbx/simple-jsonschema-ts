@@ -20,6 +20,8 @@ export type {
    StaticCoerced,
    Writeable,
    DeepWriteable,
+   RemoveUnknownAdditionalProperties,
+   Simplify,
 } from "./static";
 export {
    object,
@@ -46,3 +48,34 @@ export type {
 } from "./validation/validate";
 export { error, type ErrorDetail, valid, makeOpts } from "./utils/details";
 export { type CoercionOptions } from "./validation/coerce";
+
+import { object, strictObject, partialObject } from "./object/object";
+import { string } from "./string/string";
+import { number, integer } from "./number/number";
+import { boolean } from "./boolean/boolean";
+import { array } from "./array/array";
+import { record } from "./object/record";
+import { literal, any } from "./schema/misc";
+import { anyOf, oneOf } from "./union/union";
+import { allOf } from "./union/all-of";
+import { ref, refId, recursive } from "./ref/ref";
+
+export const s = {
+   boolean,
+   any,
+   literal,
+   object,
+   strictObject,
+   partialObject,
+   record,
+   string,
+   number,
+   integer,
+   array,
+   anyOf,
+   oneOf,
+   allOf,
+   ref,
+   refId,
+   recursive,
+};

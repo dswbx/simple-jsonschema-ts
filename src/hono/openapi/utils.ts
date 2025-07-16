@@ -78,7 +78,11 @@ export function schemaToSpec(
                [_requestBody.type]: {
                   schema: structuredClone(obj.toJSON() as any),
                   example:
-                     obj.examples?.[0] ?? obj.template({ withOptional: true }),
+                     obj.examples?.[0] ??
+                     obj.template(
+                        {},
+                        { withOptional: true, withExtendedOptional: true }
+                     ),
                },
             },
          },

@@ -15,7 +15,13 @@ import type {
    StaticCoerced,
    Writeable,
 } from "../static";
-import { invariant, isObject, isSchema } from "../utils";
+import {
+   invariant,
+   isObject,
+   isSchema,
+   isPlainObject,
+   pickKeys,
+} from "../utils";
 import { getPath } from "../utils/path";
 
 export type TProperties = {
@@ -145,7 +151,13 @@ export class ObjectSchema<
 
                return result;
             },
-            coerce: (value, opts) => {
+            coerce: (_value, opts) => {
+               let value = _value;
+
+               if (isPlainObject(value) && opts?.dropUnknown === true) {
+                  value = pickKeys(value, Object.keys(this.properties));
+               }
+
                if (typeof value === "string") {
                   // if stringified object
                   if (value.match(/^\{/)) {

@@ -2,6 +2,7 @@ import { Resolver } from "./resolver";
 import type { Schema } from "../schema/schema";
 
 export type CoercionOptions = {
+   dropUnknown?: boolean;
    resolver?: Resolver;
    depth?: number;
 };
@@ -22,6 +23,7 @@ export function coerce(
    const ctx: Required<CoercionOptions> = {
       resolver: opts.resolver || new Resolver(s),
       depth: opts.depth || 0,
+      dropUnknown: opts.dropUnknown || false,
    };
 
    if (ctx.resolver.hasRef(s, value)) {

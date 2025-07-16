@@ -14,6 +14,12 @@ export function isObject(value: unknown): value is Record<string, unknown> {
    return !Array.isArray(value) && typeof value === "object" && value !== null;
 }
 
+export function isPlainObject(
+   value: unknown
+): value is Record<string, unknown> {
+   return Object.prototype.toString.call(value) === "[object Object]";
+}
+
 export function isString(value: unknown): value is string {
    return typeof value === "string";
 }
@@ -92,4 +98,17 @@ export function normalize(value: unknown) {
       return value.normalize("NFC");
    }
    return value;
+}
+
+// lodash-es compatible `pick` with perfect type inference
+export function pickKeys<T extends object, K extends keyof T>(
+   obj: T,
+   keys: K[]
+): Pick<T, K> {
+   return keys.reduce((acc, key) => {
+      if (key in obj) {
+         acc[key] = obj[key];
+      }
+      return acc;
+   }, {} as Pick<T, K>);
 }

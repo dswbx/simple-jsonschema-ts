@@ -671,6 +671,22 @@ describe("object", () => {
       }
    });
 
+   test("coerce drop unknown", () => {
+      const schema = object({
+         name: string(),
+         age: number(),
+      });
+      expect(
+         schema.coerce(
+            { name: "John", age: 30, unknown: "what" },
+            { dropUnknown: true }
+         )
+      ).toEqual({
+         name: "John",
+         age: 30,
+      });
+   });
+
    test("template", () => {
       const schema = object({
          obj: object({

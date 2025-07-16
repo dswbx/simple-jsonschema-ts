@@ -181,6 +181,7 @@ export class Schema<
          ...opts,
          resolver: opts?.resolver || new Resolver(this),
          depth: opts?.depth ? opts.depth + 1 : 0,
+         dropUnknown: opts?.dropUnknown || false,
       };
 
       const customCoerce = this[symbol].raw?.coerce;

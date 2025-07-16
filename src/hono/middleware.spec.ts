@@ -111,7 +111,15 @@ describe("hono middleware", () => {
          expectTypeOf<typeof json>().toEqualTypeOf<{
             url?: "what";
             force: true;
-            [key: string]: unknown;
+         }>();
+         return c.json(json);
+      });
+
+      app.get("/test", jsc("query", s.record(s.string())), (c) => {
+         const json = c.req.valid("query");
+         //    ^?
+         expectTypeOf<typeof json>().toEqualTypeOf<{
+            [key: string]: string;
          }>();
          return c.json(json);
       });
