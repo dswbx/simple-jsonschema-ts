@@ -116,7 +116,7 @@ export class ObjectSchema<
          } as any,
          {
             template: (_value, opts) => {
-               let value = isObject(_value) ? _value : {};
+               let value = structuredClone(isObject(_value) ? _value : {});
                const result: Record<string, unknown> = { ...value };
 
                if (this.properties) {
@@ -152,7 +152,7 @@ export class ObjectSchema<
                return result;
             },
             coerce: (_value, opts) => {
-               let value = _value;
+               let value = structuredClone(_value);
                const propertyKeys = Object.keys(this.properties);
 
                // schema can only be strict if there are properties
