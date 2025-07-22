@@ -16,7 +16,7 @@ describe("walk", () => {
          }),
       });
 
-      console.log("schema", schema.toJSON());
+      //console.log("schema", schema.toJSON());
 
       const data = {
          name: "John Doe",
@@ -27,11 +27,11 @@ describe("walk", () => {
             current: true,
          },
       };
-      console.log(
+      /* console.log(
          [...schema.walk({ data })].map((n) => ({
             ...n,
             schema: n.schema.constructor.name,
          }))
-      );
+      ); */
    });
 });
