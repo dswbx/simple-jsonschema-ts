@@ -153,9 +153,22 @@ export class ObjectSchema<
             },
             coerce: (_value, opts) => {
                let value = _value;
+               const propertyKeys = Object.keys(this.properties);
 
-               if (isPlainObject(value) && opts?.dropUnknown === true) {
-                  value = pickKeys(value, Object.keys(this.properties));
+               // schema can only be strict if there are properties
+               // and all properties are not optional
+               const is_strict =
+                  propertyKeys.length > 0 &&
+                  Object.values(this.properties).every(
+                     (p) => !p[symbol].optional
+                  );
+
+               if (
+                  isPlainObject(value) &&
+                  // drop unknown if explicitly requested or if the schema is strict
+                  (opts?.dropUnknown === true || is_strict)
+               ) {
+                  value = pickKeys(value, propertyKeys);
                }
 
                if (typeof value === "string") {

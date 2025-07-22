@@ -42,9 +42,9 @@ export const validator = <
    I extends Input = {
       in: { [K in Target]: Static<S> };
       out: {
-         [K in Target]: Opts extends { dropUnknown: false }
-            ? Out
-            : Simplify<RemoveUnknownAdditionalProperties<Out>>;
+         [K in Target]: Opts extends { dropUnknown: true }
+            ? Simplify<RemoveUnknownAdditionalProperties<Out>>
+            : Out;
       };
    }
 >(
@@ -57,7 +57,7 @@ export const validator = <
       const value =
          options?.coerce !== false
             ? schema.coerce(_value, {
-                 dropUnknown: options?.dropUnknown ?? true,
+                 dropUnknown: options?.dropUnknown,
               })
             : _value;
       // @ts-ignore
