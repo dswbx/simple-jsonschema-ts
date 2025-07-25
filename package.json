@@ -9,6 +9,9 @@
       "*": {
          "hono": [
             "./dist/hono/index.d.ts"
+         ],
+         "mcp": [
+            "./dist/mcp/index.d.ts"
          ]
       }
    },
@@ -65,12 +68,17 @@
       "./hono": {
          "import": "./dist/hono/index.js",
          "types": "./dist/hono/index.d.ts"
+      },
+      "./mcp": {
+         "import": "./dist/mcp/index.js",
+         "types": "./dist/mcp/index.d.ts"
       }
    },
    "tsup": {
       "entry": [
          "src/lib/index.ts",
-         "src/hono/index.ts"
+         "src/hono/index.ts",
+         "src/mcp/index.ts"
       ],
       "external": [
          "hono",

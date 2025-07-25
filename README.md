@@ -1,5 +1,6 @@
 [![npm version](https://img.shields.io/npm/v/jsonv-ts.svg)](https://npmjs.org/package/jsonv-ts)
 ![gzipped size of jsonv-ts](https://img.badgesize.io/https://unpkg.com/jsonv-ts@latest/dist/lib/index.js?compression=gzip&label=jsonv-ts)
+![gzipped size of jsonv-ts/hono](https://img.badgesize.io/https://unpkg.com/jsonv-ts@latest/dist/hono/index.js?compression=gzip&label=jsonv-ts/hono)
 
 # jsonv-ts: JSON Schema Builder and Validator for TypeScript
 
@@ -46,6 +47,7 @@ A simple, lightweight (~6kb gzipped) and dependency-free TypeScript library for 
 -  Static type inference from schemas using the `Static` helper.
 -  Support for standard JSON schema types and keywords.
 -  Hono integration for OpenAPI generation and request validation.
+-  MCP server implementation.
 
 ## Installation
 
