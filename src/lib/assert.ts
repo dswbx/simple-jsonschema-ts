@@ -1,10 +1,6 @@
 import { expect } from "bun:test";
-import type { TSchemaBase } from "./schema";
+import type { Schema } from "./schema";
 
-export const assertJson = (
-   schema: TSchemaBase | { static: any },
-   expected: object
-) => {
-   const json = JSON.parse(JSON.stringify(schema));
-   expect(json).toEqual(expected);
+export const assertJson = (schema: Schema, expected: object | boolean) => {
+   expect(schema.toJSON()).toEqual(expected);
 };

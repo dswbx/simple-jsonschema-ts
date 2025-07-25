@@ -1,3 +1,5 @@
+import type { Schema } from "../schema";
+
 export const toJsonPointer = (path: (string | number)[] = [], prefix = "") => {
    return (
       "/" +
@@ -17,7 +19,7 @@ export const fromJsonPointer = (pointer: string) => {
 };
 
 export function getJsonPath(
-   object: object,
+   object: object | Schema,
    _path: string | (string | number)[],
    defaultValue = undefined
 ): any {
@@ -27,7 +29,7 @@ export function getJsonPath(
 }
 
 export function getPath(
-   object: object,
+   object: object | Schema,
    _path: string | (string | number)[],
    defaultValue = undefined
 ): any {

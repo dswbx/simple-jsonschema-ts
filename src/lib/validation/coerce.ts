@@ -1,21 +1,29 @@
 import { Resolver } from "./resolver";
-import type { TSchema } from "../schema";
+import type { Schema } from "../schema/schema";
 
 export type CoercionOptions = {
+   dropUnknown?: boolean;
    resolver?: Resolver;
    depth?: number;
 };
 
 // placeholder file
 export function coerce(
-   s: TSchema,
+   s: Schema,
    _value: unknown,
    opts: CoercionOptions = {}
 ): unknown {
-   const value = structuredClone(_value);
+   let value = _value;
+   try {
+      value = structuredClone(_value);
+   } catch (e) {
+      value = JSON.parse(JSON.stringify(_value));
+   }
+
    const ctx: Required<CoercionOptions> = {
       resolver: opts.resolver || new Resolver(s),
       depth: opts.depth || 0,
+      dropUnknown: opts.dropUnknown || false,
    };
 
    if (ctx.resolver.hasRef(s, value)) {

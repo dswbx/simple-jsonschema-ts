@@ -11,6 +11,15 @@ describe("number", () => {
       expectTypeOf<Inferred>().toEqualTypeOf<number>();
 
       assertJson(number(), { type: "number" });
+
+      {
+         // optional
+         const schema = number().optional();
+         type Inferred = Static<typeof schema>;
+         expectTypeOf<Inferred>().toEqualTypeOf<number | undefined>();
+
+         assertJson(schema, { type: "number" });
+      }
    });
 
    test("types", () => {
@@ -45,13 +54,6 @@ describe("number", () => {
       expectTypeOf<(typeof schema)["minimum"]>().toEqualTypeOf<1>();
       expectTypeOf<(typeof schema)["maximum"]>().toEqualTypeOf<1>();
       expectTypeOf<(typeof schema)["multipleOf"]>().toEqualTypeOf<1>();
-
-      expectTypeOf<(typeof schema)["exclusiveMaximum"]>().toEqualTypeOf<
-         number | undefined
-      >();
-      expectTypeOf<(typeof schema)["$id"]>().toEqualTypeOf<
-         string | undefined
-      >();
    });
 
    test("with const", () => {
@@ -104,9 +106,7 @@ describe("number", () => {
          expect(schema.validate("1").errors[0]?.error).toEqual(
             "Expected number"
          );
-         expect(schema.validate(undefined).errors[0]?.error).toEqual(
-            "Expected number"
-         );
+         expect(schema.validate(undefined).valid).toBe(true);
          expect(schema.validate(null).errors[0]?.error).toEqual(
             "Expected number"
          );
@@ -181,12 +181,7 @@ describe("number", () => {
    });
 
    test("template", () => {
-      expect(number().template()).toEqual(0);
-      expect(number({ minimum: 1 }).template()).toEqual(1);
-      expect(number({ exclusiveMinimum: 1 }).template()).toEqual(2);
-      expect(number({ exclusiveMinimum: 1, multipleOf: 2 }).template()).toEqual(
-         2
-      );
+      expect(number().template()).toEqual(undefined as any);
       expect(number({ default: 1 }).template()).toEqual(1);
       expect(number({ const: 1 }).template()).toEqual(1);
    });

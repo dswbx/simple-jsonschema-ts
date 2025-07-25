@@ -8,10 +8,6 @@ import { expectTypeOf } from "expect-type";
 describe("hono middleware", () => {
    test("should return the validated json", async () => {
       const app = new Hono();
-      const schema = s.object({
-         name: s.string(),
-         test: s.string().optional(),
-      });
       app.post(
          "/json",
          jsc(
@@ -51,11 +47,13 @@ describe("hono middleware", () => {
          "/query",
          jsc(
             "query",
-            s.partialObject({
-               int: s.number(),
-               bool: s.boolean(),
-               str: s.string(),
-            })
+            s
+               .object({
+                  int: s.number(),
+                  bool: s.boolean(),
+                  str: s.string(),
+               })
+               .partial()
          ),
          (c) => {
             const json = c.req.valid("query");
@@ -105,13 +103,24 @@ describe("hono middleware", () => {
       expectTypeOf<Coerced>().toEqualTypeOf<{
          url?: "what";
          force: true;
+         [key: string]: unknown;
       }>();
       app.get("/query", jsc("query", schema), (c) => {
          const json = c.req.valid("query");
          //    ^?
          expectTypeOf<typeof json>().toEqualTypeOf<{
+            [key: string]: unknown;
             url?: "what";
             force: true;
+         }>();
+         return c.json(json);
+      });
+
+      app.get("/test", jsc("query", s.record(s.string())), (c) => {
+         const json = c.req.valid("query");
+         //    ^?
+         expectTypeOf<typeof json>().toEqualTypeOf<{
+            [key: string]: string;
          }>();
          return c.json(json);
       });
@@ -130,5 +139,68 @@ describe("hono middleware", () => {
       expect(await req({ force: false })).toEqual({
          force: true,
       });
+   });
+
+   test("coerce: drop unknown", async () => {
+      const app = new Hono();
+      app.get(
+         "/query",
+         jsc(
+            "query",
+            s.strictObject({
+               name: s.string(),
+               age: s.number(),
+            }),
+            {
+               dropUnknown: true,
+            }
+         ),
+         (c) => {
+            const json = c.req.valid("query");
+            //    ^?
+            expectTypeOf<typeof json>().toEqualTypeOf<{
+               name: string;
+               age: number;
+            }>();
+            return c.json(json);
+         }
+      );
+
+      const res = await app.request(
+         "http://localhost:3000/query?name=John&age=30&unknown=123",
+         {
+            method: "GET",
+         }
+      );
+      expect(await res.json()).toEqual({
+         name: "John",
+         age: 30,
+      });
+   });
+
+   test("coerce: don't drop unknown on wide schema", async () => {
+      const app = new Hono();
+      app.post(
+         "/query",
+         jsc("json", s.anyOf([s.object({}), s.array(s.object({}))])),
+         async (c) => {
+            const json = c.req.valid("json");
+            return c.json(json);
+         }
+      );
+
+      const payload = {
+         name: "John",
+         age: 30,
+         unknown: 123,
+      };
+      const res = await app.request("http://localhost:3000/query", {
+         method: "POST",
+         headers: {
+            "Content-Type": "application/json",
+         },
+         body: JSON.stringify(payload),
+      });
+      expect(await res.json()).toEqual(payload);
    });
 });

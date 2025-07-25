@@ -29,6 +29,7 @@
    -  [OpenAPI generation](#openapi-generation)
 -  [Validation](#validation)
    -  [Integrated Validator](#integrated-validator)
+      -  [Using Standard Schema](#using-standard-schema)
    -  [Using ajv](#using-ajv)
    -  [Using @cfworker/json-schema](#using-cfworkerjson-schema)
    -  [Using json-schema-library](#using-json-schema-library)
@@ -57,7 +58,7 @@ npm install jsonv-ts
 ## Example
 
 ```ts
-import * as s from "jsonv-ts";
+import { s, type Static } from "jsonv-ts";
 
 const schema = s.object({
    id: s.number(),
@@ -75,7 +76,7 @@ const schema = s.object({
 // }
 
 // Infer the TypeScript type from the schema
-type User = s.Static<typeof schema>;
+type User = Static<typeof schema>;
 // { id: number; username: string; email?: string | undefined }
 
 // Example usage:
@@ -86,7 +87,7 @@ const user: User = {
 };
 
 // Type checking works as expected:
-// const invalidUser: User = { id: 'abc', username: 'jd' }; // Type error
+// const invalidUser: User = { id: "abc", username: "jd" }; // Type error
 
 // Use the integrated validation
 const result = schema.validate(user);
@@ -128,7 +129,7 @@ Defines a string type. Optional `schema` can include standard JSON schema string
 const schema = s.string({ format: "email" });
 // { type: "string", format: "email" }
 
-type Email = s.Static<typeof schema>; // string
+type Email = Static<typeof schema>; // string
 ```
 
 To define an Enum, you can add the `enum` property to the schema. It'll be inferred correctly.
@@ -137,7 +138,7 @@ To define an Enum, you can add the `enum` property to the schema. It'll be infer
 const schema = s.string({ enum: ["red", "green", "blue"] });
 // { type: "string", enum: [ "red", "green", "blue" ] }
 
-type Color = s.Static<typeof schema>; // "red" | "green" | "blue"
+type Color = Static<typeof schema>; // "red" | "green" | "blue"
 ```
 
 The same applies to Constants:
@@ -146,7 +147,7 @@ The same applies to Constants:
 const schema = s.string({ const: "active" });
 // { type: "string", const: "active" }
 
-type Status = s.Static<typeof schema>; // "active"
+type Status = Static<typeof schema>; // "active"
 ```
 
 ### Numbers
@@ -157,7 +158,7 @@ Defines a number type. Optional `schema` can include `minimum`, `maximum`, `excl
 const schema = s.number({ minimum: 0 });
 // { type: "number", minimum: 0 }
 
-type PositiveNumber = s.Static<typeof schema>; // number
+type PositiveNumber = Static<typeof schema>; // number
 ```
 
 Just like with Strings, you can use Enums and Constants with Numbers:
@@ -166,12 +167,12 @@ Just like with Strings, you can use Enums and Constants with Numbers:
 const enumSchema = s.number({ enum: [18, 21, 25] });
 // { type: "number", enum: [ 18, 21, 25 ] }
 
-type Age = s.Static<typeof enumSchema>; // 18 | 21 | 25
+type Age = Static<typeof enumSchema>; // 18 | 21 | 25
 
 const constSchema = s.number({ const: 200 });
 // { type: "number", const: 200 }
 
-type Status = s.Static<typeof constSchema>; // 200
+type Status = Static<typeof constSchema>; // 200
 ```
 
 ### Integers
@@ -186,7 +187,7 @@ Defines a boolean type.
 const schema = s.boolean();
 // { type: "boolean" }
 
-type Active = s.Static<typeof schema>; // boolean
+type Active = Static<typeof schema>; // boolean
 ```
 
 ### Literals
@@ -197,7 +198,7 @@ The `literal` schema type defines a schema that only accepts a specific value. I
 const schema = s.literal(1);
 // { const: 1 }
 
-type One = s.Static<typeof schema>; // 1
+type One = Static<typeof schema>; // 1
 ```
 
 It can be used with all primitive types, arrays and objects:
@@ -205,31 +206,31 @@ It can be used with all primitive types, arrays and objects:
 ```ts
 // String literal
 const strSchema = s.literal("hello");
-type Hello = s.Static<typeof strSchema>; // "hello"
+type Hello = Static<typeof strSchema>; // "hello"
 
 // Number literal
 const numSchema = s.literal(42);
-type FortyTwo = s.Static<typeof numSchema>; // 42
+type FortyTwo = Static<typeof numSchema>; // 42
 
 // Boolean literal
 const boolSchema = s.literal(true);
-type True = s.Static<typeof boolSchema>; // true
+type True = Static<typeof boolSchema>; // true
 
 // Null literal
 const nullSchema = s.literal(null);
-type Null = s.Static<typeof nullSchema>; // null
+type Null = Static<typeof nullSchema>; // null
 
 // Undefined literal
 const undefSchema = s.literal(undefined);
-type Undefined = s.Static<typeof undefSchema>; // undefined
+type Undefined = Static<typeof undefSchema>; // undefined
 
 // Object literal
 const objSchema = s.literal({ name: "hello" });
-type Obj = s.Static<typeof objSchema>; // { readonly name: "hello" }
+type Obj = Static<typeof objSchema>; // { readonly name: "hello" }
 
 // Array literal
 const arrSchema = s.literal([1, "2", true]);
-type Arr = s.Static<typeof arrSchema>; // readonly [1, "2", true]
+type Arr = Static<typeof arrSchema>; // readonly [1, "2", true]
 ```
 
 You can also add additional schema properties:
@@ -247,7 +248,7 @@ Defines an array type where all items must match the `items` schema.
 const schema = s.array(s.string({ minLength: 1 }), { minItems: 1 });
 // { type: "array", items: { type: "string", minLength: 1 }, minItems: 1 }
 
-type Tags = s.Static<typeof schema>; // string[]
+type Tags = Static<typeof schema>; // string[]
 ```
 
 ### Objects
@@ -262,17 +263,17 @@ const schema = s.object({
    description: s.string().optional(), // Optional property
 });
 // {
-//   type: 'object',
+//   type: "object",
 //   properties: {
-//     productId: { type: 'integer' },
-//     name: { type: 'string' },
-//     price: { type: 'number', minimum: 0 },
-//     description: { type: 'string' }
+//     productId: { type: "integer" },
+//     name: { type: "string" },
+//     price: { type: "number", minimum: 0 },
+//     description: { type: "string" }
 //   },
-//   required: [ 'productId', 'name', 'price' ]
+//   required: [ "productId", "name", "price" ]
 // }
 
-type Product = s.Static<typeof schema>;
+type Product = Static<typeof schema>;
 // {
 //   productId: number;
 //   name: string;
@@ -301,7 +302,7 @@ const schema = s.strictObject({
 //   additionalProperties: false,
 // }
 
-type StrictProduct = s.Static<typeof schema>;
+type StrictProduct = Static<typeof schema>;
 // {
 //   productId: number;
 //   name: string;
@@ -340,7 +341,7 @@ const schema = s.partialObject({
 //   }
 // }
 
-type User = s.Static<typeof schema>;
+type User = Static<typeof schema>;
 // { name?: string; age?: number; [key: string]: unknown }
 ```
 
@@ -363,7 +364,7 @@ const schema = s.partialObject(
 //   additionalProperties: false
 // }
 
-type User = s.Static<typeof schema>;
+type User = Static<typeof schema>;
 // { name?: string; age?: number }
 ```
 
@@ -380,7 +381,7 @@ const schema = s.record(s.string());
 //   }
 // }
 
-type User = s.Static<typeof schema>;
+type User = Static<typeof schema>;
 // { [key: string]: string; [key: string]: unknown }
 ```
 
@@ -393,12 +394,12 @@ Combine multiple schemas using union keywords:
 -  `allOf(schemas: TSchema[])`: Must match all of the provided schemas.
 
 ```ts
-import * as s from "jsonv-ts";
+import { s, type Static } from "jsonv-ts";
 
 const schema = s.anyOf([s.string(), s.number()]);
-// { anyOf: [ { type: 'string' }, { type: 'number' } ] }
+// { anyOf: [ { type: "string" }, { type: "number" } ] }
 
-type StringOrNumber = s.Static<typeof schema>; // string | number
+type StringOrNumber = Static<typeof schema>; // string | number
 ```
 
 ### Any
@@ -407,7 +408,7 @@ The `any` schema type allows any value to pass validation. It's useful when you 
 
 ```ts
 const schema = s.any(); // {}
-type AnyValue = s.Static<typeof schema>; // any
+type AnyValue = Static<typeof schema>; // any
 ```
 
 It can be used in objects to allow any type for a property:
@@ -423,7 +424,7 @@ const schema = s.object({
 //   }
 // }
 
-type User = s.Static<typeof schema>;
+type User = Static<typeof schema>;
 // { name?: any }
 ```
 
@@ -432,7 +433,9 @@ type User = s.Static<typeof schema>;
 In case you need schema functionality such as validation of coercion, but only have raw JSON schema definitions, you may use `s.fromSchema()`:
 
 ```ts
-const schema = s.fromSchema({
+import { fromSchema } from "jsonv-ts";
+
+const schema = fromSchema({
    type: "string",
    maxLength: 10,
 });
@@ -447,7 +450,9 @@ This function is mainly added to perform the tests against the JSON Schema Test 
 In case you need to define a custom schema, e.g. without `type` to be added, you may simply use `s.schema()`:
 
 ```ts
-const schema = s.schema({
+import { schema } from "jsonv-ts";
+
+const schema = schema({
    // any valid JSON schema object
    maxLength: 10,
 });
@@ -456,8 +461,8 @@ const schema = s.schema({
 It can also be used to define boolean schemas:
 
 ```ts
-const alwaysTrue = s.schema(true);
-const alwaysFalse = s.schema(false);
+const alwaysTrue = schema(true);
+const alwaysFalse = schema(false);
 ```
 
 ## Hono Integration
@@ -469,7 +474,7 @@ If you're using [Hono](https://hono.dev/) and want to validate the request targe
 ```ts
 import { Hono } from "hono";
 import { validator } from "jsonv-ts/hono";
-import * as s from "jsonv-ts";
+import { s } from "jsonv-ts";
 
 const app = new Hono().post(
    "/json",
@@ -487,7 +492,7 @@ It also automatically coerces e.g. query parameters to the corresponding type.
 ```ts
 import { Hono } from "hono";
 import { validator } from "jsonv-ts/hono";
-import * as s from "jsonv-ts";
+import { s } from "jsonv-ts";
 
 const app = new Hono().get(
    "/query",
@@ -538,6 +543,8 @@ app.get("/swagger", swaggerUI({ url: "/openapi.json" }));
 The schemas created with `jsonv-ts` are standard JSON Schema objects and can be used with any compliant validator. The library ensures that when the schema object is converted to JSON (e.g., using `JSON.stringify`), only standard JSON Schema properties are included, stripping any internal metadata. For the examples, this is going to be the base schema object.
 
 ```ts
+import { s } from "jsonv-ts";
+
 const schema = s.object({
    id: s.integer({ minimum: 1 }),
    username: s.string({ minLength: 3 }),
@@ -572,6 +579,10 @@ Todo:
 -  [ ] Additional optional formats: `idn-email`, `idn-hostname`, `iri`, `iri-reference`
 -  [ ] Custom formats
 
+#### Using Standard Schema
+
+The integrated validator of `jsonv-ts` supports [Standard Schema](https://github.com/standard-schema/standard-schema). To use it, refer to the list of [tools and frameworks](https://github.com/standard-schema/standard-schema?tab=readme-ov-file#what-tools--frameworks-accept-spec-compliant-schemas) that accept spec-compliant schemas.
+
 ### Using `ajv`
 
 ```ts
@@ -581,7 +592,7 @@ import addFormats from "ajv-formats";
 // ... example code from above
 
 const ajv = new Ajv();
-addFormats(ajv); // Recommended for formats like 'email'
+addFormats(ajv); // Recommended for formats like "email"
 
 const validate = ajv.compile(schema.toJSON());
 
@@ -598,7 +609,7 @@ This validator is designed for environments like Cloudflare Workers and is also 
 
 ```ts
 import { Validator } from "@cfworker/json-schema";
-import * as s from "jsonv-ts";
+import { s } from "jsonv-ts";
 
 const validator = new Validator();
 

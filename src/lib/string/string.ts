@@ -1,29 +1,63 @@
-import { schema, type TCustomSchema, type TCustomType } from "../schema";
-import type { Merge, Simplify } from "../static";
-import { isNumber } from "../utils";
+import {
+   createSchema,
+   Schema,
+   type ISchemaOptions,
+   type StrictOptions,
+} from "../schema/schema";
+import { isNumber, isString } from "../utils";
 
-export interface StringSchema extends TCustomType {
+export interface IStringOptions extends ISchemaOptions {
    maxLength?: number;
    minLength?: number;
-   pattern?: string;
+   pattern?: string | RegExp;
    format?: string;
 }
 
-export type TString<O extends StringSchema> = TCustomSchema<O, string>;
+export class StringSchema<
+   const O extends IStringOptions = IStringOptions
+> extends Schema<O, string> {
+   override readonly type = "string";
 
-export const string = <const S extends StringSchema = StringSchema>(
-   config: S = {} as S
-): TString<S> =>
-   schema(
-      {
-         template: () => "",
-         coerce: (value: unknown) => {
-            // only coerce numbers to strings
-            if (isNumber(value)) return String(value);
+   constructor(o?: O) {
+      super(o, {
+         template: (value, opts) => {
+            if (!opts?.withExtendedOptional) return value;
+            if (value === undefined || !isString(value)) return "";
             return value;
          },
-         ...config,
-         type: "string",
+         coerce: (value) => {
+            if (isNumber(value)) return String(value);
+            return value as string;
+         },
+      });
+   }
+
+   override toJSON() {
+      const { pattern, "~standard": _, ...rest } = this as any;
+      return JSON.parse(
+         JSON.stringify({
+            ...rest,
+            pattern: pattern instanceof RegExp ? pattern.source : pattern,
+         })
+      );
+   }
+}
+
+export const string = <const O extends IStringOptions>(
+   o?: StrictOptions<IStringOptions, O>
+): StringSchema<O> & O => new StringSchema(o) as any;
+
+export const string1 = <const O extends IStringOptions>(
+   o?: StrictOptions<IStringOptions, O>
+): Schema<O, string> & O => new StringSchema(o) as any;
+
+export const string2 = <const O extends IStringOptions>(
+   o?: StrictOptions<IStringOptions, O>
+): Schema<O, string> & O =>
+   createSchema("string", o, {
+      template: (value) => value ?? "",
+      coerce: (value) => {
+         if (isNumber(value)) return String(value);
+         return value as string;
       },
-      "string"
-   ) as any;
+   }) as any;

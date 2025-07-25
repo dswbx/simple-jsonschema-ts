@@ -1,158 +1,121 @@
-import type {
-   TAnySchema,
-   TCustomSchema,
-   TCustomType,
-   TSchema,
-} from "../schema";
-import { schema } from "../schema";
-import { fromSchema } from "../schema/from-schema";
+import {
+   Node,
+   Schema,
+   type ISchemaOptions,
+   type StrictOptions,
+   type WalkOptions,
+} from "../schema/schema";
 import type { Merge, Static, StaticCoerced } from "../static";
-import { mergeAllOf } from "../utils/merge-allof";
-import type { CoercionOptions } from "../validation/coerce";
 import { matches } from "../validation/keywords";
 
-type StaticUnion<T extends TAnySchema[]> = T extends [infer U, ...infer Rest]
-   ? U extends TAnySchema
-      ? Rest extends TAnySchema[]
+export type StaticUnion2<T extends Schema[]> = T extends [
+   infer U,
+   ...infer Rest
+]
+   ? U extends Schema
+      ? Rest extends Schema[]
          ? StaticUnion<Rest> | Static<U>
          : Static<U>
       : never
    : never;
 
-type StaticUnionCoerced<T extends TAnySchema[]> = T extends [
+export type StaticUnion<T extends Schema[]> = {
+   [K in keyof T]: T[K] extends Schema ? Static<T[K]> : never;
+}[number];
+
+/* export type StaticUnionCoerced<T extends Schema[]> = T extends [
    infer U,
    ...infer Rest
 ]
-   ? U extends TAnySchema
-      ? Rest extends TAnySchema[]
+   ? U extends Schema
+      ? Rest extends Schema[]
+         ? StaticUnionCoerced<Rest> | StaticCoerced<U>
+         : StaticCoerced<U>
+      : never
+   : never; */
+
+export type StaticUnionCoerced<T extends Schema[]> = {
+   [K in keyof T]: T[K] extends Schema ? StaticCoerced<T[K]> : never;
+}[number];
+
+export type StaticUnionCoercedOptions<
+   O extends ISchemaOptions,
+   T extends Schema[]
+> = O extends {
+   coerce: (...args: any[]) => infer C;
+}
+   ? C
+   : T extends [infer U, ...infer Rest]
+   ? U extends Schema
+      ? Rest extends Schema[]
          ? StaticUnionCoerced<Rest> | StaticCoerced<U>
          : StaticCoerced<U>
       : never
    : never;
 
-export interface UnionSchema extends TCustomType {
-   $defs?: Record<string, TSchema>;
+export interface IUnionOptions extends ISchemaOptions {}
+
+const unionTypeSymbol = Symbol.for("unionType");
+
+export class UnionSchema<T extends Schema[]> extends Schema<
+   IUnionOptions,
+   StaticUnion<T>,
+   StaticUnionCoercedOptions<IUnionOptions, T>
+> {
+   [unionTypeSymbol]: "oneOf" | "anyOf";
+
+   constructor(schemas: T, type: "oneOf" | "anyOf", options?: IUnionOptions) {
+      super(
+         {
+            ...options,
+            [type]: schemas,
+         },
+         {
+            coerce: (value, opts) => {
+               const customCoerce = options?.coerce;
+               if (customCoerce !== undefined) {
+                  return customCoerce.bind(this)(value, opts);
+               }
+
+               const m = matches(schemas, value, {
+                  ignoreUnsupported: true,
+                  resolver: opts?.resolver,
+                  coerce: true,
+               });
+
+               if (m.length > 0) {
+                  return m[0]!.coerce(value, opts);
+               }
+               return value;
+            },
+         }
+      );
+      this[unionTypeSymbol] = type;
+   }
+
+   get schemas() {
+      return this[this[unionTypeSymbol]];
+   }
+
+   override children(opts?: WalkOptions): Node[] {
+      const nodes: Node[] = [];
+      for (const [i, schema] of this.schemas.entries()) {
+         const node = new Node(schema, opts);
+         node.appendKeywordPath([this[unionTypeSymbol], i]);
+         nodes.push(node);
+      }
+      return nodes;
+   }
 }
 
-export type TAnyOf<
-   T extends TAnySchema[],
-   O extends UnionSchema = UnionSchema
-> = TCustomSchema<O, StaticUnion<T>> & {
-   static: StaticUnion<T>;
-   coerce: StaticUnionCoerced<T>;
-   anyOf: T;
-};
-
-export const anyOf = <
-   const T extends TSchema[],
-   const O extends Omit<UnionSchema, "anyOf">
->(
+export const anyOf = <const T extends Schema[], const O extends IUnionOptions>(
    schemas: T,
-   options: O = {} as O
-): TAnyOf<T, O> => {
-   return schema(
-      {
-         ...options,
-         coerce: function (
-            this: TAnyOf<T, O>,
-            _value: unknown,
-            opts: CoercionOptions = {}
-         ) {
-            let value = _value;
-            if ("coerce" in options && options.coerce !== undefined) {
-               return options.coerce.bind(this)(_value, opts);
-            }
+   options?: StrictOptions<IUnionOptions, O>
+): Schema<O, StaticUnion<T>, StaticUnionCoercedOptions<O, T>> &
+   Merge<O & { anyOf: T }> => new UnionSchema(schemas, "anyOf", options) as any;
 
-            const m = matches(schemas, value, {
-               ignoreUnsupported: true,
-               resolver: opts.resolver,
-               coerce: true,
-            });
-
-            if (m.length > 0) {
-               return m[0]!.coerce(value, opts);
-            }
-            return value;
-         },
-         anyOf: schemas,
-      },
-      "anyOf"
-   ) as any;
-};
-
-export type TOneOf<
-   T extends TAnySchema[],
-   O extends UnionSchema = UnionSchema
-> = TCustomSchema<O, StaticUnion<T>> & {
-   static: StaticUnion<T>;
-   oneOf: T;
-};
-
-export const oneOf = <
-   const T extends TSchema[],
-   const O extends Omit<TSchema, "oneOf">
->(
+export const oneOf = <const T extends Schema[], const O extends IUnionOptions>(
    schemas: T,
-   options: O = {} as O
-): TOneOf<T, O> => {
-   return schema(
-      {
-         ...options,
-         coerce: function (
-            this: TOneOf<T, O>,
-            value: unknown,
-            opts: CoercionOptions = {}
-         ) {
-            const m = matches(schemas, value, {
-               ignoreUnsupported: true,
-               resolver: opts.resolver,
-               coerce: true,
-            });
-
-            if (m.length === 1) {
-               return m[0]!.coerce(value, opts);
-            }
-            return value;
-         },
-         oneOf: schemas,
-      },
-      "oneOf"
-   ) as any;
-};
-
-type StaticUnionAllOf<T extends TAnySchema[]> = T extends [
-   infer U,
-   ...infer Rest
-]
-   ? U extends TAnySchema
-      ? Rest extends TAnySchema[]
-         ? Merge<U["static"] & StaticUnionAllOf<Rest>>
-         : U["static"]
-      : never
-   : {};
-
-export type TAllOf<
-   T extends TAnySchema[],
-   O extends UnionSchema = UnionSchema
-> = TCustomSchema<O, StaticUnionAllOf<T>> & {
-   static: StaticUnionAllOf<T>;
-   allOf: T;
-};
-
-// use with caution!
-export const allOf = <
-   const T extends TAnySchema[],
-   const O extends Omit<TSchema, "allOf">
->(
-   schemas: T,
-   options: O = {} as O
-): TAllOf<T, O> => {
-   const clone = JSON.parse(
-      JSON.stringify({
-         ...options,
-         allOf: schemas,
-      })
-   );
-
-   return fromSchema(mergeAllOf(clone)) as any;
-};
+   options?: StrictOptions<IUnionOptions, O>
+): Schema<O, StaticUnion<T>, StaticUnionCoercedOptions<O, T>> & O =>
+   new UnionSchema(schemas, "oneOf", options) as any;

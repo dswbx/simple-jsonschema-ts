@@ -1,78 +1,85 @@
 import {
-   schema,
-   type TAnySchema,
-   type TCustomSchema,
-   type TCustomType,
-   type TSchema,
-} from "../schema";
+   Node,
+   Schema,
+   type ISchemaOptions,
+   type StrictOptions,
+   type WalkOptions,
+} from "../schema/schema";
 import type { Static, StaticCoerced } from "../static";
-import { isSchema, invariant } from "../utils";
-import type { CoercionOptions } from "../validation/coerce";
+import { isSchema } from "../utils";
 
-type ArrayStatic<T extends TAnySchema> = Static<T>[] & {};
-type ArrayCoerced<T extends TAnySchema> = StaticCoerced<T>[] & {};
+type ArrayStatic<T extends Schema> = Static<T>[] & {};
+type ArrayCoerced<T extends Schema> = StaticCoerced<T>[] & {};
 
-export interface ArraySchema extends TCustomType {
-   $defs?: Record<string, TSchema>;
-   contains?: TSchema;
+export interface IArrayOptions extends ISchemaOptions {
+   $defs?: Record<string, Schema>;
+   contains?: Schema;
    minContains?: number;
    maxContains?: number;
-   prefixItems?: TSchema[];
+   prefixItems?: Schema[];
    uniqueItems?: boolean;
    maxItems?: number;
    minItems?: number;
 }
 
-export type TArray<
-   Items extends TAnySchema,
-   O extends ArraySchema
-> = TCustomSchema<O, ArrayStatic<Items>> & {
-   items: Items;
-   coerce: (value: unknown) => ArrayCoerced<Items>;
-};
+export class ArraySchema<
+   const Items extends Schema,
+   const O extends IArrayOptions
+> extends Schema<O, ArrayStatic<Items>, ArrayCoerced<Items>> {
+   override readonly type = "array";
 
-export const array = <
-   const Items extends TAnySchema,
-   const O extends ArraySchema
->(
-   items?: Items,
-   options: O = {} as O
-): TArray<Items, O> => {
-   if (items !== undefined) {
-      invariant(isSchema(items), "items must be a schema", items);
+   constructor(public readonly items?: Items, options: O = {} as O) {
+      super(
+         {
+            ...options,
+            items,
+         },
+         {
+            template: (value) => {
+               if (value === undefined || !Array.isArray(value)) return [];
+               return value;
+            },
+            coerce: (_value, opts) => {
+               try {
+                  const value =
+                     typeof _value === "string" ? JSON.parse(_value) : _value;
+                  if (!Array.isArray(value)) {
+                     return undefined;
+                  }
+
+                  if (isSchema(this.items)) {
+                     for (const [index, item] of value.entries()) {
+                        // @ts-ignore
+                        value[index] = this.items.coerce(item, opts);
+                     }
+                  }
+                  return value;
+               } catch (e) {}
+
+               return _value as any;
+            },
+         }
+      );
+      this.items = items;
    }
 
-   return schema(
-      {
-         template: () => [],
-         coerce,
-         ...options,
-         type: "array",
-         items,
-      },
-      "array"
-   ) as any;
-};
+   override children(opts?: WalkOptions): Node[] {
+      const nodes: Node[] = [];
 
-function coerce(
-   this: ArraySchema & { items: TAnySchema | boolean },
-   _value: unknown,
-   opts: CoercionOptions
-) {
-   try {
-      const value = typeof _value === "string" ? JSON.parse(_value) : _value;
-      if (!Array.isArray(value)) {
-         return undefined;
+      if (this.items) {
+         const node = new Node(this.items, opts);
+         node.appendKeywordPath(["items"]);
+         nodes.push(node);
       }
 
-      if (isSchema(this.items)) {
-         for (const [index, item] of value.entries()) {
-            // @ts-ignore
-            value[index] = this.items.coerce(item, opts);
-         }
-      }
-      return value;
-   } catch (e) {}
-
-   return _value;
+      return nodes;
+   }
 }
+
+export const array = <
+   const Items extends Schema,
+   const O extends IArrayOptions
+>(
+   items?: Items,
+   options?: StrictOptions<IArrayOptions, O>
+): ArraySchema<Items, O> & O => new ArraySchema(items, options) as any;

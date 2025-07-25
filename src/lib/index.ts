@@ -1,47 +1,82 @@
 export {
-   type TSchema,
-   type TOptional,
-   type TAnySchema,
-   type TSchemaFn,
-   type TSchemaInOut,
-   schema,
-} from "./schema";
-export { any, type TAny, literal, type TLiteral } from "./schema/misc";
-export type { Static, StaticConstEnum, StaticCoerced } from "./static";
+   Schema,
+   type ISchemaOptions,
+   type StrictOptions,
+   booleanSchema,
+   type TSchemaTemplateOptions,
+} from "./schema/schema";
+export {
+   any,
+   literal,
+   type IAnyOptions,
+   type ILiteralOptions,
+} from "./schema/misc";
+export type {
+   Static,
+   Merge,
+   OptionalUndefined,
+   OptionallyOptional,
+   StaticConstEnum,
+   StaticCoerced,
+   Writeable,
+   DeepWriteable,
+   RemoveUnknownAdditionalProperties,
+   Simplify,
+} from "./static";
 export {
    object,
-   type ObjectSchema,
-   type TObject,
-   record,
-   type TRecord,
-   type RecordSchema,
-   partialObject,
-   type TPartialObject,
+   ObjectSchema,
+   type IObjectOptions,
    strictObject,
+   partialObject,
+   type ObjectStatic,
+   type ObjectCoerced,
+   type ObjectDefaults,
 } from "./object/object";
-export { string, type TString, type StringSchema } from "./string/string";
-export {
-   number,
-   type TNumber,
-   type NumberSchema,
-   integer,
-} from "./number/number";
-export { array, type TArray, type ArraySchema } from "./array/array";
-export { boolean, type TBoolean, type BooleanSchema } from "./boolean/boolean";
-export {
-   anyOf,
-   oneOf,
-   type TAnyOf,
-   type TOneOf,
-   type UnionSchema,
-} from "./union/union";
+export { record, RecordSchema, type IRecordOptions } from "./object/record";
+export { string, StringSchema, type IStringOptions } from "./string/string";
+export { number, type INumberOptions, integer } from "./number/number";
+export { array, ArraySchema, type IArrayOptions } from "./array/array";
+export { boolean, type IBooleanOptions } from "./boolean/boolean";
+export { type IUnionOptions, anyOf, oneOf } from "./union/union";
+export { allOf } from "./union/all-of";
 export { fromSchema } from "./schema/from-schema";
-export { ref, type TRef, refId, type TRefId, recursive } from "./ref/ref";
+export { RefType, ref, refId, recursive } from "./ref/ref";
 export type {
    ValidationResult,
    ValidationOptions,
 } from "./validation/validate";
 export { error, type ErrorDetail, valid, makeOpts } from "./utils/details";
-export { $kind, $raw, $optional } from "./symbols";
 export { type CoercionOptions } from "./validation/coerce";
 export { type ParseOptions, parse, ParseError } from "./validation/parse";
+
+import { object, strictObject, partialObject } from "./object/object";
+import { string } from "./string/string";
+import { number, integer } from "./number/number";
+import { boolean } from "./boolean/boolean";
+import { array } from "./array/array";
+import { record } from "./object/record";
+import { literal, any } from "./schema/misc";
+import { anyOf, oneOf } from "./union/union";
+import { allOf } from "./union/all-of";
+import { ref, refId, recursive } from "./ref/ref";
+
+export const s = {
+   boolean,
+   any,
+   literal,
+   object,
+   strictObject,
+   partialObject,
+   record,
+   string,
+   number,
+   integer,
+   array,
+   anyOf,
+   oneOf,
+   allOf,
+   ref,
+   refId,
+   recursive,
+};

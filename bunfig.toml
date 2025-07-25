@@ -1,0 +1,5 @@
+[run]
+console.depth = 4
+
+[test]
+console.depth = 4

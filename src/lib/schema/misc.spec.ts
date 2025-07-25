@@ -1,23 +1,22 @@
 import { describe, expect, test } from "bun:test";
-import { any, literal, type TLiteral } from "./misc";
+import { any, literal } from "./misc";
 import { expectTypeOf } from "expect-type";
 import type { Static, StaticCoerced } from "../static";
-import { $kind } from "../symbols";
 import { assertJson } from "../assert";
 import { object } from "../object/object";
-import type { TCustomType } from ".";
 import { string } from "../string/string";
 import { array } from "../array/array";
+import type { symbol } from "./schema";
 
 describe("any", () => {
    test("base", () => {
       const schema = any();
+      type Inferred2 = (typeof schema)[typeof symbol]["static"];
+      expectTypeOf<Inferred2>().toEqualTypeOf<any>();
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<any>();
       type Coerced = StaticCoerced<typeof schema>;
       expectTypeOf<Coerced>().toEqualTypeOf<any>();
-
-      expect<any>(schema[$kind]).toEqual("any");
 
       assertJson(schema, {});
    });
@@ -32,7 +31,10 @@ describe("any", () => {
          [key: string]: unknown;
       }>();
       type Coerced = StaticCoerced<typeof schema>;
-      expectTypeOf<Coerced>().toEqualTypeOf<{ name?: any }>();
+      expectTypeOf<Coerced>().toEqualTypeOf<{
+         name?: any;
+         [key: string]: unknown;
+      }>();
 
       assertJson(schema, {
          type: "object",
@@ -46,11 +48,16 @@ describe("any", () => {
 describe("literal", () => {
    test("base", () => {
       const schema = literal(1);
+      type W = (typeof schema)[typeof symbol]["static"];
+      expectTypeOf<W>().toEqualTypeOf<1>();
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<1>();
       type Coerced = StaticCoerced<typeof schema>;
       expectTypeOf<Coerced>().toEqualTypeOf<1>();
       assertJson(schema, { const: 1 });
+
+      expect(schema.const).toBe(1);
+      expectTypeOf<typeof schema.const>().toEqualTypeOf<1>();
    });
 
    test("primitives", () => {
@@ -79,11 +86,6 @@ describe("literal", () => {
       const schema = literal(1, {
          title: "number",
       });
-      type Props<T> = T extends TLiteral<infer A, infer P extends TCustomType>
-         ? P
-         : never;
-      type SchemaProps = Props<typeof schema>;
-      expectTypeOf<SchemaProps>().toEqualTypeOf<{ readonly title: "number" }>();
       type Inferred = Static<typeof schema>;
       expectTypeOf<Inferred>().toEqualTypeOf<1>();
       type Coerced = StaticCoerced<typeof schema>;

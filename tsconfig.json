@@ -7,9 +7,7 @@
       "jsx": "react-jsx",
       "allowJs": true,
       "moduleResolution": "bundler",
-      "allowImportingTsExtensions": true,
       "verbatimModuleSyntax": true,
-      "noEmit": true,
       "strict": true,
       "skipLibCheck": true,
       "noFallthroughCasesInSwitch": true,
@@ -17,14 +15,17 @@
       "noImplicitAny": false,
       "noUnusedLocals": false,
       "noUnusedParameters": false,
+      "declaration": true,
+      "composite": true,
       "noPropertyAccessFromIndexSignature": false,
       "noImplicitOverride": true,
-      "declaration": true,
       "outDir": "./dist",
+      "rootDir": "src",
+      "tsBuildInfoFile": "./dist/tsconfig.tsbuildinfo",
       "paths": {
          "jsonv-ts": ["./src/lib/index.ts"]
       }
    },
    "include": ["src/**/*.ts"],
-   "exclude": ["node_modules", "dist"]
+   "exclude": ["node_modules", "src/test"]
 }

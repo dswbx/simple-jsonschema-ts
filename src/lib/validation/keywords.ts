@@ -1,16 +1,16 @@
-import type { TSchema } from "../schema";
+import type { Schema } from "../schema/schema";
 import { InvalidTypeError } from "../errors";
 import {
    isArray,
    isBoolean,
-   isBooleanSchema,
    isInteger,
    isNull,
    isNumber,
    isObject,
-   isSchema,
    isString,
    normalize,
+   isSchema,
+   isBooleanSchema,
 } from "../utils";
 import { error, makeOpts, tmpOpts, valid } from "../utils/details";
 import type { ValidationOptions } from "./validate";
@@ -21,8 +21,14 @@ type Opts = ValidationOptions;
 /**
  * Default keywords
  */
-export const _type = ({ type }: TSchema, value: unknown, opts: Opts = {}) => {
+export const _type = (
+   { type }: { type?: string | string[] },
+   value: unknown,
+   opts: Opts = {}
+) => {
    if (type === undefined) return valid();
+   // @todo: not entirely sure about this
+   if (value === undefined) return valid();
 
    let msg: string | undefined;
    const types = {
@@ -54,7 +60,7 @@ export const _type = ({ type }: TSchema, value: unknown, opts: Opts = {}) => {
 };
 
 export const _const = (
-   { const: _constValue }: TSchema,
+   { const: _constValue }: { const?: unknown },
    _value: unknown,
    opts: Opts = {}
 ) => {
@@ -67,7 +73,7 @@ export const _const = (
 };
 
 export const _enum = (
-   { enum: _enumValues = [] }: TSchema,
+   { enum: _enumValues = [] }: { enum?: unknown[] },
    _value: unknown,
    opts: Opts = {}
 ) => {
@@ -79,18 +85,18 @@ export const _enum = (
    return valid();
 };
 
-export function matches<T extends TSchema[]>(
+export function matches<T extends Schema[]>(
    schemas: T,
    value: unknown,
    opts: Opts = {}
-): TSchema[] {
+): Schema[] {
    return schemas
       .map((s) => (s.validate(value, tmpOpts(opts)).valid ? s : undefined))
-      .filter(Boolean) as TSchema[];
+      .filter(Boolean) as Schema[];
 }
 
 export const anyOf = (
-   { anyOf = [] }: TSchema,
+   { anyOf = [] }: { anyOf?: Schema[] },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -99,7 +105,7 @@ export const anyOf = (
 };
 
 export const oneOf = (
-   { oneOf = [] }: TSchema,
+   { oneOf = [] }: { oneOf?: Schema[] },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -108,7 +114,7 @@ export const oneOf = (
 };
 
 export const allOf = (
-   { allOf = [] }: TSchema,
+   { allOf = [] }: { allOf?: Schema[] },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -116,7 +122,14 @@ export const allOf = (
    return error(opts, "allOf", "Expected all to match", value);
 };
 
-export const not = ({ not }: TSchema, value: unknown, opts: Opts = {}) => {
+export const not = (
+   { not }: { not?: Schema },
+   value: unknown,
+   opts: Opts = {}
+) => {
+   // not spec relevant, but if no value given, it's always valid
+   if (value === undefined) return valid();
+
    if (isSchema(not) && not.validate(value, opts).valid) {
       return error(opts, "not", "Expected not to match", value);
    }
@@ -124,7 +137,11 @@ export const not = ({ not }: TSchema, value: unknown, opts: Opts = {}) => {
 };
 
 export const ifThenElse = (
-   { if: _if, then: _then, else: _else }: TSchema,
+   {
+      if: _if,
+      then: _then,
+      else: _else,
+   }: { if?: Schema; then?: Schema; else?: Schema },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -145,12 +162,16 @@ export const ifThenElse = (
  * Strings
  */
 export const pattern = (
-   { pattern = "" }: TSchema,
+   { pattern = "" }: { pattern?: string | RegExp },
    value: unknown,
    opts: Opts = {}
 ) => {
    if (!isString(value)) return valid();
-   if (new RegExp(pattern, "u").test(value)) return valid();
+   if (pattern instanceof RegExp) {
+      if (pattern.test(value)) return valid();
+   } else {
+      if (new RegExp(pattern, "u").test(value)) return valid();
+   }
    return error(
       opts,
       "pattern",
@@ -160,7 +181,7 @@ export const pattern = (
 };
 
 export const minLength = (
-   { minLength = 0 }: TSchema,
+   { minLength = 0 }: { minLength?: number },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -176,7 +197,7 @@ export const minLength = (
 };
 
 export const maxLength = (
-   { maxLength = 0 }: TSchema,
+   { maxLength = 0 }: { maxLength?: number },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -195,7 +216,7 @@ export const maxLength = (
  * Numbers
  */
 export const multipleOf = (
-   { multipleOf = 0 }: TSchema,
+   { multipleOf = 0 }: { multipleOf?: number },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -225,7 +246,7 @@ export const multipleOf = (
 };
 
 export const maximum = (
-   { maximum = 0 }: TSchema,
+   { maximum = 0 }: { maximum?: number },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -239,7 +260,7 @@ export const maximum = (
 };
 
 export const exclusiveMaximum = (
-   { exclusiveMaximum = 0 }: TSchema,
+   { exclusiveMaximum = 0 }: { exclusiveMaximum?: number },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -253,7 +274,7 @@ export const exclusiveMaximum = (
 };
 
 export const minimum = (
-   { minimum = 0 }: TSchema,
+   { minimum = 0 }: { minimum?: number },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -267,7 +288,7 @@ export const minimum = (
 };
 
 export const exclusiveMinimum = (
-   { exclusiveMinimum = 0 }: TSchema,
+   { exclusiveMinimum = 0 }: { exclusiveMinimum?: number },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -284,7 +305,7 @@ export const exclusiveMinimum = (
  * Objects
  */
 export const properties = (
-   { properties = {} }: TSchema,
+   { properties = {} }: { properties?: Record<string, Schema> },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -303,7 +324,15 @@ export const properties = (
 };
 
 export const additionalProperties = (
-   { properties = {}, additionalProperties, patternProperties }: TSchema,
+   {
+      properties = {},
+      additionalProperties,
+      patternProperties,
+   }: {
+      properties?: Record<string, Schema>;
+      additionalProperties?: Schema | false;
+      patternProperties?: Record<string, Schema>;
+   },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -326,7 +355,20 @@ export const additionalProperties = (
    );
    if (extra.length > 0) {
       if (isBooleanSchema(additionalProperties)) {
-         return additionalProperties.validate(undefined);
+         if (additionalProperties.toJSON() === true) {
+            return valid();
+         }
+         const extraObj = extra.reduce((acc, key) => {
+            acc[key] = value[key];
+            return acc;
+         }, {} as Record<string, unknown>);
+
+         return error(
+            opts,
+            "additionalProperties",
+            "Additional properties are not allowed",
+            extraObj
+         );
       } else if (isSchema(additionalProperties)) {
          for (const key of extra) {
             const result = additionalProperties.validate(
@@ -341,7 +383,7 @@ export const additionalProperties = (
 };
 
 export const dependentRequired = (
-   { dependentRequired }: TSchema,
+   { dependentRequired }: { dependentRequired?: Record<string, string[]> },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -369,7 +411,7 @@ export const dependentRequired = (
 };
 
 export const required = (
-   { required = [] }: TSchema,
+   { required = [] }: { required?: string[] },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -387,7 +429,7 @@ export const required = (
 };
 
 export const dependentSchemas = (
-   { dependentSchemas }: TSchema,
+   { dependentSchemas }: { dependentSchemas?: Record<string, Schema> },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -407,7 +449,7 @@ export const dependentSchemas = (
 };
 
 export const minProperties = (
-   { minProperties = 0 }: TSchema,
+   { minProperties = 0 }: { minProperties?: number },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -422,7 +464,7 @@ export const minProperties = (
 };
 
 export const maxProperties = (
-   { maxProperties = 0 }: TSchema,
+   { maxProperties = 0 }: { maxProperties?: number },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -437,7 +479,7 @@ export const maxProperties = (
 };
 
 export const patternProperties = (
-   { patternProperties = {} }: TSchema,
+   { patternProperties = {} }: { patternProperties?: Record<string, Schema> },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -461,7 +503,7 @@ export const patternProperties = (
 };
 
 export const propertyNames = (
-   { propertyNames }: TSchema,
+   { propertyNames }: { propertyNames?: Schema },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -483,7 +525,7 @@ export const propertyNames = (
  * Arrays
  */
 export const items = (
-   { items, prefixItems = [] }: TSchema,
+   { items, prefixItems = [] }: { items?: Schema; prefixItems?: Schema[] },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -503,7 +545,7 @@ export const items = (
 };
 
 export const minItems = (
-   { minItems = 0 }: TSchema,
+   { minItems = 0 }: { minItems?: number },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -517,7 +559,7 @@ export const minItems = (
 };
 
 export const maxItems = (
-   { maxItems = 0 }: TSchema,
+   { maxItems = 0 }: { maxItems?: number },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -531,7 +573,7 @@ export const maxItems = (
 };
 
 export const uniqueItems = (
-   { uniqueItems = false }: TSchema,
+   { uniqueItems = false }: { uniqueItems?: boolean },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -547,7 +589,11 @@ export const uniqueItems = (
 };
 
 export const contains = (
-   { contains, minContains, maxContains }: TSchema,
+   {
+      contains,
+      minContains,
+      maxContains,
+   }: { contains?: Schema; minContains?: number; maxContains?: number },
    value: unknown,
    opts: Opts = {}
 ) => {
@@ -578,7 +624,7 @@ export const contains = (
 };
 
 export const prefixItems = (
-   { prefixItems = [] }: TSchema,
+   { prefixItems = [] }: { prefixItems?: Schema[] },
    value: unknown,
    opts: Opts = {}
 ) => {

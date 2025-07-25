@@ -1,25 +1,22 @@
 import {
-   schema,
-   type TAnySchema,
-   type TCustomSchema,
-   type TCustomType,
-   type TSchemaBase,
-} from "./schema.ts";
+   createSchema,
+   Schema,
+   type ISchemaOptions,
+   type StrictOptions,
+} from "./schema";
+import type { Merge } from "../static";
 
-export type TAny<O extends TSchemaBase = TSchemaBase> = TCustomSchema<
-   O,
-   any
-> & {
-   static: any;
-};
+export interface IAnyOptions extends ISchemaOptions {
+   [key: string]: any;
+}
 
-export const any = <O extends TSchemaBase>(options: O = {} as O): TAny<O> => {
-   return schema(options as any, "any") as any;
-};
+export const any = <const O extends IAnyOptions>(
+   o?: O
+): Schema<O, any, any> & O => createSchema(o?.type, o) as any;
 
 type Primitive = string | number | boolean | null | undefined | bigint;
 
-type LiteralType<T, Excluded extends object> = T extends Primitive
+type TLiteralType<T, Excluded extends object> = T extends Primitive
    ? T
    : T extends object
    ? T extends Excluded
@@ -27,17 +24,14 @@ type LiteralType<T, Excluded extends object> = T extends Primitive
       : T
    : never;
 
-export type TLiteral<
-   ConstValue,
-   O extends TCustomType,
-   Out = ConstValue extends TAnySchema ? never : ConstValue
-> = TCustomSchema<{ const: Out } & O, unknown> & {
-   static: Out;
-};
+export interface ILiteralOptions
+   extends Omit<ISchemaOptions, "const" | "enum"> {}
 
-export const literal = <const L, const O extends Omit<TCustomType, "const">>(
-   value: LiteralType<L, TAnySchema>,
-   options: O = {} as O
-): TLiteral<L, O> => {
-   return schema({ const: value, ...options }, "literal") as any;
-};
+export const literal = <const L, const O extends ILiteralOptions>(
+   value: TLiteralType<L, Schema>,
+   o?: StrictOptions<ILiteralOptions, O>
+): Schema<O, L, L> & Merge<O & { const: L }> =>
+   createSchema(undefined as any, {
+      ...o,
+      const: value,
+   }) as any;
