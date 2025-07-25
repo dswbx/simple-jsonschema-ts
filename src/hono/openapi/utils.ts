@@ -1,5 +1,7 @@
 import type { ObjectSchema } from "jsonv-ts";
 import * as t from "./types";
+import type { RouteHandler } from "../shared";
+import type { RouterRoute } from "hono/types";
 
 export function isPlainObject(
    value: unknown
@@ -46,11 +48,81 @@ const honoTargetToParameterin = {
 const honoTargetToRequestBody = {
    json: {
       type: "application/json",
+      example: true,
    },
    form: {
       type: "multipart/form-data",
    },
+   binary: {
+      type: "application/octet-stream",
+   },
 } as const;
+
+export function registerPath(
+   specs: Partial<t.Document>,
+   route: RouterRoute,
+   { type, value }: RouteHandler
+) {
+   const path = toOpenAPIPath(route.path);
+   const method = route.method.toLowerCase();
+
+   if (!specs.paths) {
+      specs.paths = {};
+   }
+
+   if (!specs.paths?.[path]) {
+      specs.paths[path] = {};
+   }
+   if (!specs.paths?.[path]?.[method]) {
+      specs.paths[path][method] = {
+         responses: {},
+         operationId: generateOperationId(method, path),
+      };
+   }
+   const obj = specs.paths[path][method] as t.OperationObject;
+
+   switch (type) {
+      case "parameters":
+         const { parameters, requestBody } = schemaToSpec(
+            value.schema,
+            value.target
+         );
+
+         if (parameters) {
+            if (!obj.parameters) {
+               obj.parameters = [];
+            }
+            obj.parameters.push(
+               ...parameters.filter((p) => {
+                  try {
+                     return !obj.parameters?.some(
+                        // @ts-ignore
+                        (p2) => p2.name === p.name && p2.in === p.in
+                     );
+                  } catch (e) {
+                     return true;
+                  }
+               })
+            );
+         }
+
+         if (requestBody) {
+            if (!obj.requestBody) {
+               obj.requestBody = {} as any;
+            }
+            merge(obj.requestBody, requestBody);
+         }
+
+         break;
+      case "route-doc":
+         merge(obj, value);
+         break;
+   }
+
+   if (obj.parameters && Array.isArray(obj.parameters)) {
+      obj.parameters = sortParameters(obj.parameters as any);
+   }
+}
 
 export function schemaToSpec(
    obj: ObjectSchema,
@@ -72,17 +144,19 @@ export function schemaToSpec(
          }),
       };
    } else if (_requestBody) {
+      const add_example = !!_requestBody.example;
       return {
          requestBody: {
             content: {
                [_requestBody.type]: {
                   schema: structuredClone(obj.toJSON() as any),
-                  example:
-                     obj.examples?.[0] ??
-                     obj.template(
-                        {},
-                        { withOptional: true, withExtendedOptional: true }
-                     ),
+                  example: add_example
+                     ? obj.examples?.[0] ??
+                       obj.template(
+                          {},
+                          { withOptional: true, withExtendedOptional: true }
+                       )
+                     : undefined,
                },
             },
          },
@@ -90,6 +164,23 @@ export function schemaToSpec(
    }
 
    return {};
+}
+
+export function sortParameters(parameters: t.ParameterObject[]) {
+   return parameters.sort((a, b) => {
+      // lower score = higher priority
+      const getPriority = (param: t.ParameterObject) => {
+         const isPath = param.in === "path";
+         const isRequired = param.required === true;
+
+         if (isPath && isRequired) return 1; // path && required
+         if (isPath) return 2; // path
+         if (isRequired) return 3; // required
+         return 4; // everything else
+      };
+
+      return getPriority(a) - getPriority(b);
+   });
 }
 
 export const toOpenAPIPath = (path: string) =>

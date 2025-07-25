@@ -164,4 +164,19 @@ describe("record", () => {
       const schema = record(object({ name: string() }));
       expect(schema.template({})).toEqual({});
    });
+
+   test("coerce", () => {
+      const schema = record(string());
+      type Inferred = Static<typeof schema>;
+      //   ^?
+      expectTypeOf<Inferred>().toEqualTypeOf<{
+         [key: string]: string;
+      }>();
+
+      type Coerced = StaticCoerced<typeof schema>;
+      //   ^?
+      expectTypeOf<Coerced>().toEqualTypeOf<{
+         [key: string]: string;
+      }>();
+   });
 });

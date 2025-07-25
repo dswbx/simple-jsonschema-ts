@@ -4,11 +4,12 @@ import { validator as honoValidator } from "hono/validator";
 import type {
    Static,
    StaticCoerced,
-   Schema,
    RemoveUnknownAdditionalProperties,
    Simplify,
+   Schema,
+   ObjectSchema,
 } from "jsonv-ts";
-import { $symbol } from "./shared";
+import { symbolize } from "./shared";
 
 export type Options = {
    coerce?: boolean;
@@ -80,13 +81,11 @@ export const validator = <
       return middleware as any;
    }
 
-   return Object.assign(middleware, {
-      [$symbol]: {
-         type: "parameters",
-         value: {
-            target,
-            schema,
-         },
+   return symbolize(middleware, {
+      type: "parameters",
+      value: {
+         target,
+         schema: schema as unknown as ObjectSchema,
       },
    }) as any;
 };

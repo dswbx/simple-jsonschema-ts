@@ -112,3 +112,11 @@ export function pickKeys<T extends object, K extends keyof T>(
       return acc;
    }, {} as Pick<T, K>);
 }
+
+export function safeStructuredClone<T>(value: T): T {
+   try {
+      return structuredClone(value);
+   } catch (e) {
+      return value;
+   }
+}

@@ -1,17 +1,8 @@
 import type { Env, Hono } from "hono";
 import type { MiddlewareHandler } from "hono/types";
-import { $symbol } from "../shared";
-import {
-   merge,
-   schemaToSpec,
-   toOpenAPIPath,
-   generateOperationId,
-} from "./utils";
+import { $symbol, symbolize, type RouteHandler } from "../shared";
+import { registerPath } from "./utils";
 import * as t from "./types";
-
-interface CustomEnv extends Env {
-   [key: string]: any;
-}
 
 export const openAPISpecs = <E extends Env>(
    hono: Hono<E>,
@@ -26,57 +17,8 @@ export const openAPISpecs = <E extends Env>(
 
          for (const route of hono.routes) {
             if ($symbol in route.handler) {
-               const method = route.method.toLowerCase();
-               const path = toOpenAPIPath(route.path);
-               const { type, value } = route.handler[$symbol] as any;
-               if (!specs.paths[path]) {
-                  specs.paths[path] = {};
-               }
-               if (!specs.paths[path][method]) {
-                  specs.paths[path][method] = {
-                     responses: {},
-                     operationId: generateOperationId(method, path),
-                  };
-               }
-               const obj = specs.paths[path][method];
-
-               switch (type) {
-                  case "parameters":
-                     const { parameters, requestBody } = schemaToSpec(
-                        value.schema,
-                        value.target
-                     );
-
-                     if (parameters) {
-                        if (!obj.parameters) {
-                           obj.parameters = [];
-                        }
-                        obj.parameters.push(
-                           ...parameters.filter((p) => {
-                              try {
-                                 return !obj.parameters.some(
-                                    // @ts-ignore
-                                    (p2) => p2.name === p.name && p2.in === p.in
-                                 );
-                              } catch (e) {
-                                 return true;
-                              }
-                           })
-                        );
-                     }
-
-                     if (requestBody) {
-                        if (!obj.requestBody) {
-                           obj.requestBody = {};
-                        }
-                        merge(obj.requestBody, requestBody);
-                     }
-
-                     break;
-                  case "route-doc":
-                     merge(specs.paths[path][method], value);
-                     break;
-               }
+               const routeHandler = route.handler[$symbol] as RouteHandler;
+               registerPath(specs, route, routeHandler);
             }
          }
       }
@@ -85,6 +27,7 @@ export const openAPISpecs = <E extends Env>(
          openapi: "3.1.0",
          info: {
             title: "API",
+            version: "1.0.0",
             ...specs.info,
          },
          ...specs,
@@ -93,16 +36,14 @@ export const openAPISpecs = <E extends Env>(
 };
 
 export const describeRoute = <E extends Env, P extends string>(
-   specs: t.DescribeRouteOptions
+   specs?: t.DescribeRouteOptions
 ) => {
    const handler: MiddlewareHandler<E, P> = async (c, next) => {
       await next();
    };
 
-   return Object.assign(handler, {
-      [$symbol]: {
-         type: "route-doc",
-         value: specs,
-      },
+   return symbolize(handler, {
+      type: "route-doc",
+      value: specs ?? {},
    });
 };

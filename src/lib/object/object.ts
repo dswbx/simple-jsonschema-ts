@@ -21,6 +21,7 @@ import {
    isSchema,
    isPlainObject,
    pickKeys,
+   safeStructuredClone,
 } from "../utils";
 import { getPath } from "../utils/path";
 
@@ -152,8 +153,8 @@ export class ObjectSchema<
                return result;
             },
             coerce: (_value, opts) => {
-               let value = structuredClone(_value);
                const propertyKeys = Object.keys(this.properties);
+               let value = safeStructuredClone(_value);
 
                // schema can only be strict if there are properties
                // and all properties are not optional
